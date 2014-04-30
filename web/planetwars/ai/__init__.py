@@ -6,4 +6,4 @@ def planetwars_ai(name):
         return f
     return planetwars_ai_decorator
 
-import planetwars.ai.simple
+from planetwars.ai.bots import *
