@@ -1,7 +1,10 @@
 # PlanetWars State Representation
 #
+# written by Michael Buro and Graham Kendall 2.2015
+#
 # - generate orders
-# - execute single orders
+# - execute single order for one player
+# - execute orders for both players
 
 from collections import defaultdict
 from planetwars import Fleet, Planet, Order
