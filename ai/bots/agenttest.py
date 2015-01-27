@@ -1,3 +1,7 @@
+# single-neuron agent with manually "tuned" weights
+# written by Michael Buro and Simon Lucas, Jan-27-2015
+# with the help of Alex Champandard
+
 import numpy
 import random
 import math
@@ -7,6 +11,7 @@ from planetwars.datatypes import Order
 from planetwars.utils import *
 from ..state import State
 
+# Euclidean distance
 def dist(x1, y1, x2, y2):
   return math.sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2))
 
@@ -21,6 +26,10 @@ def select_move(pid, planets, fleets):
   my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
   your_planets, neutral_planets = partition(lambda x: x.owner != 0, other_planets)
 
+  if len(my_planets) == 0:
+    return []
+
+  # weights
   wv = [
     +1.0,  # src ships
     -2.1,  # dest ships
@@ -37,6 +46,7 @@ def select_move(pid, planets, fleets):
     +1.0,  # dst growth
   ]
 
+  # incoming ship buckets
   buckets = 10
 
   # src incoming ship buckets
@@ -52,6 +62,8 @@ def select_move(pid, planets, fleets):
   neutral_ships_total = 0
   my_growth = 0
   your_growth = 0
+
+  # tally ships and growth
   
   for p in planets:
     if p.id == 0:
@@ -63,10 +75,8 @@ def select_move(pid, planets, fleets):
       your_ships_total += p.ships
       your_growth += p.growth
 
-  if len(my_planets) == 0:
-    return []
-
   # compute maximal distance between planets
+
   max_dist = 0
   for src in planets:
     for dst in planets:
@@ -154,22 +164,21 @@ def select_move(pid, planets, fleets):
 
 @planetwars_ai("AgentTest")
 def agenttest_ai(turn, pid, planets, fleets):
+  return select_move(pid, planets, fleets)
 
-    # my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
-    # state  = State(planets, fleets)
-    # orders = state.generate_orders(pid)
+# my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
+# state  = State(planets, fleets)
+# orders = state.generate_orders(pid)
 
-    # for p in planets:
-    #   print "planet: ", p.id, p.x, p.y, p.owner, p.ships, p.growth
-      
-    # for f in fleets:
-    #   print "fleet: ", f.owner, f.ships, f.source, f.destination, f.total_turns, f.remaining_turns
+# for p in planets:
+#   print "planet: ", p.id, p.x, p.y, p.owner, p.ships, p.growth
 
-    # for o in orders:
-    #   print "order:", o.source.id, o.destination.id, o.ships
+# for f in fleets:
+#   print "fleet: ", f.owner, f.ships, f.source, f.destination, f.total_turns, f.remaining_turns
 
-    return select_move(pid, planets, fleets)
-    
-    # returned_orders = [random.choice(orders)]
-    # print "RETURNED: ", returned_orders
-    # return returned_orders
+# for o in orders:
+#   print "order:", o.source.id, o.destination.id, o.ships
+
+# returned_orders = [random.choice(orders)]
+# print "RETURNED: ", returned_orders
+# return returned_orders
