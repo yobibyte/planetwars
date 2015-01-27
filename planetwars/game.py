@@ -94,7 +94,7 @@ class PlanetWars:
                 i = 0
                 while i < len( oldfleets ):
                     checkx, checky = oldfleets[i].location()
-                    if (fleetx - checkx)**2 + (fleety - checky)**2 < 2:
+                    if (fleetx - checkx)**2 + (fleety - checky)**2 < 1:
                         #print "DESTROY", fleetx, fleety, checkx, checky
                         oldfleets[i].destroy = True
                         fleet.destroy = True
