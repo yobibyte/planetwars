@@ -65,3 +65,8 @@ class Fleet:
 
     def has_arrived(self):
         return self.remaining_turns <= 0
+        
+    def location( self ):
+        x = self.source.x + (1 - float(self.remaining_turns)/self.total_turns) * (self.destination.x - self.source.x)
+        y = self.source.y + (1 - float(self.remaining_turns)/self.total_turns) * (self.destination.y - self.source.y)
+        return x, y
