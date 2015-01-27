@@ -26,8 +26,8 @@ class PlanetWars:
         self.turns_per_second = turns_per_second
         self.turn_duration = 1.0 / turns_per_second
         self.turn = 0
-        #self.collisions = collisions
-        self.collisions = True
+        self.collisions = collisions
+        # self.collisions = True
 
     def add_view(self, view):
         self.views.append(view)
