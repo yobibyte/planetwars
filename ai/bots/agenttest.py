@@ -28,7 +28,7 @@ def agenttest_ai(turn, pid, planets, fleets):
 
     returned_orders = []
     if len(orders) > 0:
-      returned_orders = [orders[0]]
+      returned_orders = [random.choice(orders)]
     else:
       returned_orders = []
 
