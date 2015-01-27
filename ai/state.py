@@ -1,25 +1,25 @@
 import time
 from collections import defaultdict
 
-from planetwars import Fleet, Planet
+from planetwars import Fleet, Planet, Order
 from planetwars.internal import load_all_maps
 from planetwars.utils import count_ships, partition
 
 class State:
 
   # extract relevant state data from global planetwars object
-  def __init__(self, planetwars):
-    self.planets, self.fleets = planetwars.freeze();
+  def __init__(self, planets, fleets):
+    self.planets, self.fleets = planets, fleets;
 
   # generate list of all possible order for player pid
   def generate_orders(self, pid):
     def mine(x):
       return x.owner == pid
-    my_planets, other_planets = partition(mine, planets)
+    my_planets, other_planets = partition(mine, self.planets)
     
     res = []
     for src in my_planets:
-      for dest in other_planets:
+      for dst in other_planets:
         res.extend(Order(src, dst, src.ships / 2))
 
     return res
