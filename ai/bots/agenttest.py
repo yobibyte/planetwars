@@ -21,9 +21,17 @@ def agenttest_ai(turn, pid, planets, fleets):
       print "planet: ", p.id, p.x, p.y, p.owner, p.ships, p.growth
       
     for f in fleets:
-      print "fleet: ", f.owner, f.ships, f.source.id, f.destination.id, f.total_turns, f.remaining_turns
-    
-    for o in orders:
-      print "order:", o.source.id, o.destination.id, o.source.ships
+      print "fleet: ", f.owner, f.ships, f.source, f.destination, f.total_turns, f.remaining_turns
 
-    return [Order(source, destination, source.ships / 2)]
+    for o in orders:
+      print "order:", o.source.id, o.destination.id, o.ships
+
+    returned_orders = []
+    if len(orders) > 0:
+      returned_orders = [orders[0]]
+    else:
+      returned_orders = []
+
+    print "RETURNED: ", returned_orders
+    return returned_orders
+#    return [Order(source, destination, source.ships / 2)]

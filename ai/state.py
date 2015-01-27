@@ -18,9 +18,10 @@ class State:
     my_planets, other_planets = partition(mine, self.planets)
     
     res = []
+     
     for src in my_planets:
       for dst in other_planets:
-        res.extend(Order(src, dst, src.ships / 2))
+        res.append(Order(src, dst, src.ships / 2))
 
     return res
 
