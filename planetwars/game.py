@@ -13,7 +13,7 @@ class PlanetWars:
     ais = {}
     maps = load_all_maps()
 
-    def __init__(self, players, map_name, turns_per_second=2):
+    def __init__(self, players, map_name, turns_per_second=2, collisions=False):
         if len(players) < 2:
             raise Exception("A game requires at least two players.")
         self.player_names = players
@@ -26,6 +26,7 @@ class PlanetWars:
         self.turns_per_second = turns_per_second
         self.turn_duration = 1.0 / turns_per_second
         self.turn = 0
+        self.collisions = collisions
 
     def add_view(self, view):
         self.views.append(view)
