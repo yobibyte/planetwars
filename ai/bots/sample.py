@@ -1,6 +1,6 @@
 import random
 
-from planetwars.ai import planetwars_ai
+from .. import planetwars_ai
 from planetwars.datatypes import Order
 from planetwars.utils import *
 
