@@ -13,19 +13,28 @@ class PlanetWars:
     ais = {}
     maps = load_all_maps()
 
-    def __init__(self, players, map_name, turns_per_second=2):
+    def __init__(self, players, map_name=None, planets=None, fleets=None,
+                                turns_per_second=2, turn=0):
         if len(players) < 2:
             raise Exception("A game requires at least two players.")
         self.player_names = players
         self.players = [_neutral_player] + [PlanetWars.ais[player] for player in players]
         self.map_name = map_name
-        planets, fleets = PlanetWars.maps[map_name]
-        self.planets = [Planet(*planet) for planet in planets]
-        self.fleets = [Fleet(*fleet) for fleet in fleets]
+
+        if map_name is not None:
+            planets, fleets = PlanetWars.maps[map_name]
+            self.planets = [Planet(*planet) for planet in planets]
+            self.fleets = [Fleet(*fleet) for fleet in fleets]
+        else:
+            assert planets is not None, "Please specify planets since map_name is None."
+            assert fleets is not None, "Please specify fleets since map_name is None."
+            self.planets = planets
+            self.fleets = fleets
+
         self.views = []
         self.turns_per_second = turns_per_second
         self.turn_duration = 1.0 / turns_per_second
-        self.turn = 0
+        self.turn = turn
 
     def add_view(self, view):
         self.views.append(view)
