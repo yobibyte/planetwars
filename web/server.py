@@ -100,7 +100,6 @@ def create_game():
     if m == "Random":
         m = random.choice(PlanetWars.maps.keys())
     tps = float(request.form.get("tps", 2))
-    print tps
     games[game_id] = PlanetWars([p1, p2], m, turns_per_second=tps)
     view = WebsocketView(game_id)
     games[game_id].add_view(view)

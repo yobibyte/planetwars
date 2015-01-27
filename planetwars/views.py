@@ -7,10 +7,14 @@ from planetwars.utils import partition
 
 class TextView():
 
-    def __init__(self):
+    def __init__(self, quiet=False):
+        self.quiet = quiet
         self.old_planets = None
 
     def print_planet(self, planet, fleets):
+        if self.quiet:
+            return
+
         def is_dest(fleet):
             return fleet.destination == planet.id
         def mine(x):
@@ -43,6 +47,9 @@ class TextView():
         print("Running at %d turns per second" % turns_per_second)
 
     def update(self, planets, fleets):
+        if self.quiet:
+            return
+
         if not self.old_planets:
             self.old_planets = planets
         print("\nPlanets:")
