@@ -14,7 +14,7 @@ class PlanetWars:
     maps = load_all_maps()
 
     def __init__(self, players, map_name=None, planets=None, fleets=None,
-                                turns_per_second=2, turn=0):
+                                turns_per_second=2, turn=0, collisions=False):
         if len(players) < 2:
             raise Exception("A game requires at least two players.")
         self.player_names = players
@@ -35,6 +35,7 @@ class PlanetWars:
         self.turns_per_second = turns_per_second
         self.turn_duration = 1.0 / turns_per_second
         self.turn = turn
+        self.collisions = collisions
 
     def add_view(self, view):
         self.views.append(view)
@@ -86,6 +87,28 @@ class PlanetWars:
             planet.generate_ships()
         for fleet in self.fleets:
             fleet.advance()
+
+        # Collisions do before advancement?
+        if self.collisions:
+            oldfleets = self.fleets
+            for fleet in oldfleets:
+                fleet.destroy = False
+            self.fleets = []
+            while len( oldfleets ) > 0:
+                fleet = oldfleets.pop( 0 )
+                if fleet.destroy:
+                    continue
+                fleetx, fleety = fleet.location()
+                i = 0
+                while i < len( oldfleets ):
+                    checkx, checky = oldfleets[i].location()
+                    if (fleetx - checkx)**2 + (fleety - checky)**2 < 1:
+                        #print "DESTROY", fleetx, fleety, checkx, checky
+                        oldfleets[i].destroy = True
+                        fleet.destroy = True
+                    i += 1
+                if not fleet.destroy:
+                    self.fleets.append( fleet )
 
         # Arrival
         arrived_fleets, self.fleets = partition(lambda fleet: fleet.has_arrived(), self.fleets)

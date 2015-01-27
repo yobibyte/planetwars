@@ -7,14 +7,10 @@ from ..state import State
 
 @planetwars_ai("AgentTest")
 def agenttest_ai(turn, pid, planets, fleets):
-    def mine(x):
-        return x.owner == pid
-    my_planets, other_planets = partition(mine, planets)
-    source = random.choice(my_planets)
-    destination = random.choice(other_planets)
 
-    state = State(planets, fleets)
+    my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
 
+    state  = State(planets, fleets)
     orders = state.generate_orders(pid)
 
     for p in planets:
@@ -26,12 +22,6 @@ def agenttest_ai(turn, pid, planets, fleets):
     for o in orders:
       print "order:", o.source.id, o.destination.id, o.ships
 
-    returned_orders = []
-    if len(orders) > 0:
-      returned_orders = [random.choice(orders)]
-    else:
-      returned_orders = []
-
+    returned_orders = [random.choice(orders)]
     print "RETURNED: ", returned_orders
     return returned_orders
-#    return [Order(source, destination, source.ships / 2)]
