@@ -31,6 +31,7 @@ class DeepQ():
         self.memory+=[(last_sa,reward,terminal,all_next_sas)]
 
     def train_from_memory(self, updates):
+        updates = min(len(self.memory), updates)
         for update in range(updates):
             r = np.random.randint(len(self.memory))
             t_data = self.memory[r]
