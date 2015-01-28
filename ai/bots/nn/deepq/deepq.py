@@ -2,7 +2,7 @@ __author__ = 'ssamot, schaul'
 
 from ai.bots.nn.sknn.sknn import sknn, IncrementalMinMaxScaler
 import numpy as np
-import pickle
+import cPickle as pickle
 
 
 
@@ -100,4 +100,9 @@ class DeepQ():
                 return pickle.load(f)
         except IOError as e:
             raise RuntimeError(e)
+
+
+    def __getstate__(self):
+        #print self.__dict__.keys()
+        return dict((k, v) for (k, v) in self.__dict__.iteritems() if k != "memory")
 
