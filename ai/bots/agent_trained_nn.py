@@ -102,8 +102,9 @@ class DeepBot(object):
     
     for src in my_planets:
       for dst in planets:
-        if src == dst:
-          continue
+        # allowing NOOPs
+        #if src == dst:
+        #  continue
 
         fv = []
         # planet totals
