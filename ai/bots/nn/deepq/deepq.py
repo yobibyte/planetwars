@@ -16,9 +16,9 @@ class DeepQ():
         self.network = sknn(layers, dropout, input_scaler, output_scaler, learning_rate,verbose)
         ##self.target_network = pylearn2MLPO()
         self.target_network = self.network
-        self.gamma = 0.9
-        self.epsilon = 0.1
-
+        self.gamma = 0.95
+        self.epsilon = 0.2
+        print 'gamma', self.gamma, 'epsilon', self.epsilon, 'lr', learning_rate
         self.swap_iterations = 10000
         self.swap_counter = 0
 
@@ -31,8 +31,9 @@ class DeepQ():
         self.memory+=[(last_sa,reward,terminal,all_next_sas)]
 
     def train_from_memory(self, updates):
-        updates = min(len(self.memory), updates)
-        for update in range(updates):
+        if len(self.memory) > 10000:
+          updates = min(len(self.memory), updates)
+          for update in range(updates):
             r = np.random.randint(len(self.memory))
             t_data = self.memory[r]
             self.fit(*t_data)

@@ -27,6 +27,7 @@ class DeepBot(object):
   def __init__(self):
     layers  =  [("RectifiedLinear", 200), ("Linear", )]
     self.avg_reward = 0
+
     self.games = 0
     try:
         self.bot = DeepQ.load()
@@ -180,11 +181,10 @@ class DeepBot(object):
   def done(self, won):
 
     self.games+=1.0
-    #assert(False)
-    print self.avg_reward/self.games
+    print 'after', int(self.games), self.avg_reward/self.games*2
     self.bot.addToMemory (self.bot.last_sa, float(won), 1, None)
     self.bot.train_from_memory(10000)
-    self.bot.save()
+    #self.bot.save()
 
     self.avg_reward+=float(won)-0.5
     #if(self.games % 1 == 0 ):
