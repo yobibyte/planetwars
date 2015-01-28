@@ -14,7 +14,7 @@ class PlanetWars:
     maps = load_all_maps()
 
     def __init__(self, players, map_name=None, planets=None, fleets=None,
-                                turns_per_second=2, turn=0, collisions=False):
+                                turns_per_second=None, turn=0, collisions=False):
         if len(players) < 2:
             raise Exception("A game requires at least two players.")
         self.player_names = players
@@ -33,7 +33,7 @@ class PlanetWars:
 
         self.views = []
         self.turns_per_second = turns_per_second
-        self.turn_duration = 1.0 / turns_per_second
+        self.turn_duration = 1.0 / (turns_per_second or 1.0)
         self.turn = turn
         self.collisions = collisions
 
@@ -55,7 +55,7 @@ class PlanetWars:
         while winner < 0:
             # Wait until time has passed
             now = time.time()
-            if now < next_turn:
+            if self.turns_per_second is not None and now < next_turn:
                 time.sleep(next_turn - now)
             next_turn += self.turn_duration
             # Do the turn
