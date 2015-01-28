@@ -43,8 +43,8 @@ class DeepQ():
         return Q.max()
 
 
-    def fit(self,reward, terminal, all_next_sas):
-        last_sa = self.last_sa
+    def fit(self,last_sa, reward, terminal, all_next_sas):
+        #last_sa = self.last_sa
         gamma = self.gamma
         maxQ = 0
         if terminal == 0:

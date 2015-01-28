@@ -161,7 +161,7 @@ class DeepBot(object):
 
     npfm = np.array(fm)
     bestord_id = self.bot.act(npfm,0,0)
-    self.bot.fit(0, 0, npfm)
+    #self.bot.fit(0, 0, npfm)
     order_ids = [ bestord_id]
     orders = []
     for id in order_ids:
@@ -171,5 +171,5 @@ class DeepBot(object):
 
   # inform learner that game ended
   def done(self, won):
-    self.fit(int(won), 1, None)
-
+    self.bot.train_from_memory(10000)
+    self.save()
