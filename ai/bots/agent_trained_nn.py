@@ -63,6 +63,9 @@ def agent_trained_nn(turn, pid, planets, fleets):
       if d > max_dist:
         max_dist = d
 
+  # incoming ship buckets
+  buckets = 10
+        
   # incoming ship bucket matrix
   # incoming friendly ships count 1, incoming enemy ships count -1
   # for each planet we tally incoming ship for time buckets 0..buckets-1
@@ -79,7 +82,7 @@ def agent_trained_nn(turn, pid, planets, fleets):
     tally[f.destination, b] += f.ships * (1 if f.owner == pid else -1)
   
   all_orders = []
-  fmatrix = []
+  fm = []
   
   for src in my_planets:
     for dst in planets:
@@ -142,11 +145,13 @@ def agent_trained_nn(turn, pid, planets, fleets):
       fv.append(perc)  
       
       fm.append(fv);
-      all_orders.append(Order(src, dst, ships*perc/100))
+      all_orders.append(Order(src, dst, src.ships*perc/100))
 
   # intermediate reward = 0 for now      
-  order_ids = bot_act(fm, 0)
 
+  order_ids = bot_act(fm, 0)
+  # order_ids = [ 0 ]
+  
   orders = []
   for id in order_ids:
     orders.append(all_orders[id])
@@ -155,4 +160,4 @@ def agent_trained_nn(turn, pid, planets, fleets):
 
 # inform learner that game ended
 def done(self, won):
-  bot_done(won)
+  pass
