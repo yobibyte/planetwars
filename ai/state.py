@@ -6,6 +6,8 @@
 # - execute single order for one player
 # - execute orders for both players
 
+import math
+import random
 from collections import defaultdict
 from planetwars import Fleet, Planet, Order
 from planetwars.utils import partition
@@ -13,7 +15,7 @@ from planetwars.utils import partition
 class State:
 
   # extract relevant state data from global planetwars object
-  def __init__(self, planets, fleets):
+  def __init__(self, planets=None, fleets=None):
     self.planets, self.fleets = planets, fleets;
 
   # generate list of all possible order for player pid
@@ -91,3 +93,49 @@ class State:
       destination = order.destination # !!! was: self.planets[order.destination.id]
       source.ships -= ships
       self.fleets.append(Fleet(player, ships, source, destination))
+
+  # generate random start state
+  # point symmetric planets
+  # (no ships in the air)
+  # fixme: planets may overlap in webview
+  def random_setup(self, p1_planets, p2_planets, neutral_planets):
+
+    WH     = 25.0  # Width/Height
+    MARGIN = 1.0   # Margin
+
+    self.planets = []
+    self.fleets = []
+
+    pmax = max(p1_planets, p2_planets)
+
+    if neutral_planets % 2 == 1:
+      # odd: create neutral planet at center
+      self.add_planet(MID, MID, 0, self.rnd_ships(), self.rnd_growth())
+      neutral_planets -= 1
+
+    # create pmax+neutral_planet/2 symmetrical planet pairs
+    # with neutral excess planets
+    id = 0
+    for i in range(pmax+neutral_planets/2):
+      x = self.rnd_coord(WH, MARGIN)
+      y = self.rnd_coord(WH, MARGIN)
+      s = self.rnd_ships()
+      g = self.rnd_growth()
+      p1 = 1 if i < p1_planets else 0
+      p2 = 2 if i < p2_planets else 0
+      self.add_planet(x, y,       p1, s, g, id)
+      id += 1
+      self.add_planet(WH-x, WH-y, p2, s, g, id)
+      id += 1
+
+  def add_planet(self, x, y, owner, ships, growth, id):
+    self.planets.append(Planet(id, x, y, owner, ships, growth))
+     
+  def rnd_coord(self, WH, MARGIN):
+    return random.random()*(WH-2*MARGIN)+MARGIN
+
+  def rnd_ships(self):
+    return random.randint(5, 100)
+
+  def rnd_growth(self):
+    return random.randint(1, 5)
