@@ -27,7 +27,7 @@ class DeepQ():
         self.memory = []
         self.last_sa = None
 
-    def __addToMemory(self, last_sa, reward, terminal, all_next_sas):
+    def addToMemory(self, last_sa, reward, terminal, all_next_sas):
         self.memory+=[(last_sa,reward,terminal,all_next_sas)]
 
     def train_from_memory(self, updates):
@@ -81,7 +81,7 @@ class DeepQ():
         last_sa = self.last_sa
 
         if(last_sa is not None):
-            self.__addToMemory(last_sa, reward, terminal, all_next_sas)
+            self.addToMemory(last_sa, reward, terminal, all_next_sas)
 
 
         self.last_sa = all_next_sas[action]

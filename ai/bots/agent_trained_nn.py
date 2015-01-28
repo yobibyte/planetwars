@@ -27,6 +27,9 @@ class DeepBot(object):
   def __init__(self):
     layers  =  [("RectifiedLinear", 110),("RectifiedLinear", 110), ("Linear", )]
     self.bot = DeepQ(layers)
+    self.avg_reward = 0
+    self.games = 0
+
 
   def __call__(self, turn, pid, planets, fleets):
 
@@ -171,5 +174,15 @@ class DeepBot(object):
 
   # inform learner that game ended
   def done(self, won):
+    self.bot.addToMemory (self.bot.last_sa, float(won), 1, None)
     self.bot.train_from_memory(10000)
     self.save()
+
+    self.avg_reward+=float(won)
+    #if(self.games % 1 == 0 ):
+    print self.avg_reward/1000.0
+    self.avg_reward = 0
+
+    self.games+=1
+
+
