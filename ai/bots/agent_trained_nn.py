@@ -25,14 +25,14 @@ def dist(src, dst):
 class DeepBot(object):
 
   def __init__(self):
-    layers  =  [("Linear", )]
+    layers  =  [("RectifiedLinear", 200), ("Linear", )]
     self.avg_reward = 0
     self.games = 0
     try:
         self.bot = DeepQ.load()
         print "Loaded"
     except:
-        self.bot = DeepQ(layers)
+        self.bot = DeepQ(layers, learning_rate=0.1)
         print "Not loaded"
 
   def __call__(self, turn, pid, planets, fleets):
