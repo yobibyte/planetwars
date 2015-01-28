@@ -5,11 +5,13 @@ import numpy
 import random
 import math
 
-from .. import planetwars_ai
+from .. import planetwars_class
 from planetwars.datatypes import Order
 from planetwars.utils import *
 from ..state import State
 from ..draft_interface import bot_act
+from ..bots.nn.deepq.deepq import DeepQ
+
 
 # Euclidean distance
 def dist(src, dst):
@@ -20,9 +22,13 @@ def dist(src, dst):
 
 
 @planetwars_class
-class DeepBot(obect):
+class DeepBot(object):
 
-  def __call__(turn, pid, planets, fleets):
+  def __init__(self):
+    layers  =  [("RectifiedLinear", 110),("RectifiedLinear", 110), ("Linear", )]
+    self.bot = DeepQ(layers)
+
+  def __call__(self, turn, pid, planets, fleets):
 
     assert pid == 1 or pid == 2, "what?"
 
@@ -152,9 +158,12 @@ class DeepBot(obect):
     # intermediate reward = 0 for now      
 
     order_ids = bot_act(fm, 0)
+
+    orders = self.bot.act(fm,0,0)
+    self.bot.fit(0, 0, fm)
     # order_ids = [ 0 ]
     
-    orders = []
+    orders = [orders]
     for id in order_ids:
       orders.append(all_orders[id])
 
@@ -162,4 +171,5 @@ class DeepBot(obect):
 
   # inform learner that game ended
   def done(self, won):
-    pass
+    self.fit(int(won), 1, None)
+
