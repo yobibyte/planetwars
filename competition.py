@@ -16,7 +16,7 @@ def main(argv):
     arguments, remaining = parser.parse_known_args(argv)
 
     for i in range(arguments.games):
-        game = PlanetWars(remaining[:2], map_name="map13", collisions=arguments.collisions)
+        game = PlanetWars(remaining[:2], map_name="map%i" % random.randint(1,100), collisions=arguments.collisions)
         game.play()
         if not arguments.quiet:
             sys.stdout.write('.')
