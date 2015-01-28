@@ -25,7 +25,7 @@ def dist(src, dst):
 class DeepBot(object):
 
   def __init__(self):
-    layers  =  [("RectifiedLinear", 200), ("Linear", )]
+    layers  =  [("RectifiedLinear", 25), ("Linear", )]
     self.avg_reward = 0
 
     self.games = 0
@@ -108,41 +108,41 @@ class DeepBot(object):
 
         fv = []
         # planet totals
-        fv.append(src.ships)
-        fv.append(dst.ships)
+        fv.append(src.ships / 250.0)
+        fv.append(dst.ships / 250.0)
 
         # ship total
-        fv.append(my_ships_total)
-        fv.append(your_ships_total)
-        fv.append(neutral_ships_total)
+        fv.append(my_ships_total / 1000.0)
+        fv.append(your_ships_total / 1000.0)
+        fv.append(neutral_ships_total / 1000.0)
 
         # growth
-        fv.append(my_growth)
-        fv.append(your_growth)
+        fv.append(my_growth / 100.0)
+        fv.append(your_growth / 100.0)
 
         # distance
         d = dist(src, dst)
         #print "PLANET DIST: ", src, dst
         #print "DIST: ", src.id, dst.id, d
-        fv.append(d)
+        fv.append(d / 625.0)
 
         # I own dst planet
-        fv.append(1 if dst.id == pid else 0)
+        fv.append(1.0 if dst.id == pid else 0.0)
         # you own dst planet
-        fv.append(1 if dst.id != 0 and dst.id != pid else 0)
+        fv.append(1.0 if dst.id != 0 and dst.id != pid else 0.0)
         # neutral owns dst planet
-        fv.append(1 if dst.id == 0 else 0)
+        fv.append(1.0 if dst.id == 0 else 0.0)
 
         # growth
-        fv.append(src.growth)
-        fv.append(dst.growth)
+        fv.append(src.growth / 5.0)
+        fv.append(dst.growth / 5.0)
 
         # incoming ship buckets (src)
 
         # print "incoming src", src.id, ": ", 
 
         for i in range(buckets):
-          fv.append(tally[src.id, i])
+          fv.append(tally[src.id, i] / 100.0)
           # print i, tally[src.id, i],
         #print
         
@@ -150,7 +150,7 @@ class DeepBot(object):
         # print "incoming dst", dst.id, ": ", 
 
         for i in range(buckets):
-          fv.append(tally[dst.id, i])
+          fv.append(tally[dst.id, i] / 100.0)
           #print tally[dst.id, i],
         #print
 
@@ -158,8 +158,7 @@ class DeepBot(object):
         # need to create one feature vector for each option
 
         perc = 50 # ship percentage
-        
-        fv.append(perc)  
+        # fv.append(perc)  
         
         fm.append(fv);
         all_orders.append(Order(src, dst, src.ships*perc/100))
@@ -181,16 +180,16 @@ class DeepBot(object):
 
   # inform learner that game ended
   def done(self, won):
+    self.games += 1
+    print '#', int(self.games), "(%i)" % len(self.bot.memory), self.avg_reward/self.games*2
+    if self.games % 100 == 0:
+      print "Training...",
+      self.bot.addToMemory(self.bot.last_sa, float(won), 1, None)
+      self.bot.train_from_memory(10000)
+      print "DONE!"
+      self.avg_reward = 0.0
+      # self.bot.save()
 
-    self.games+=1.0
-    print 'after', int(self.games), self.avg_reward/self.games*2
-    self.bot.addToMemory (self.bot.last_sa, float(won), 1, None)
-    self.bot.train_from_memory(10000)
-    #self.bot.save()
-
-    self.avg_reward+=float(won)-0.5
+    self.avg_reward += float(won) - 0.5
     #if(self.games % 1 == 0 ):
     #self.avg_reward = 0
-
-
-
