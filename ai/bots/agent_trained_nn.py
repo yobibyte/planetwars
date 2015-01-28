@@ -26,7 +26,12 @@ class DeepBot(object):
 
   def __init__(self):
     layers  =  [("RectifiedLinear", 110),("RectifiedLinear", 110), ("Linear", )]
-    self.bot = DeepQ(layers)
+    try:
+        self.bot = DqqpQ.load()
+        print "Loaded"
+    except:
+        self.bot = DeepQ(layers)
+        print "Not loaded"
 
   def __call__(self, turn, pid, planets, fleets):
 
@@ -171,5 +176,5 @@ class DeepBot(object):
 
   # inform learner that game ended
   def done(self, won):
-    self.bot.train_from_memory(10000)
+    self.bot.train_from_memory(0)
     self.save()
