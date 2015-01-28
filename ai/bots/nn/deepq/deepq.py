@@ -1,4 +1,4 @@
-__author__ = 'ssamot'
+__author__ = 'ssamot, schaul'
 
 from ai.bots.nn.sknn.sknn import sknn, IncrementalMinMaxScaler
 import numpy as np
@@ -7,9 +7,6 @@ import pickle
 
 
 class DeepQ():
-
-
-
     """
     A Q learning agent
     """
@@ -27,55 +24,72 @@ class DeepQ():
 
         self.initialised = False
 
+        self.memory = []
+
+    def __addToMemory(self, last_sa, reward, terminal, all_next_sas):
+        self.memory+=[(last_sa,reward,terminal,all_next_sas)]
+
+    def train_from_memory(self, updates):
+        for update in range(updates):
+            r = np.random.randint(len(self.memory))
+            t_data = self.memory[r]
+            self.fit(*t_data)
 
 
-    def __maxQ(self, state):
-        Q = np.array([self.target_network.predict(state_action.reshape(1,state_action.size) )for state_action in self.state_action_preproc.enum(state)])
-        #print Q
+
+    def __maxQ(self, sas):
+        Q = np.array([self.target_network.predict(state_action.reshape(1,state_action.size) )for state_action in sas])
         return Q.max()
 
 
-    def fit(self,state, next_state, action, reward, terminal):
+    def fit(self, last_sa, reward, terminal, all_next_sas):
         gamma = self.gamma
-
-        maxQ = self.__maxQ(next_state)
-        saf  = self.state_action_preproc.get(state, action)
+        maxQ = 0
+        if terminal == 0:
+            maxQ = self.__maxQ(all_next_sas)
 
         target = reward  + (1-terminal) * gamma * maxQ
-        self.network.fit(saf.reshape(1,saf.size), np.array([[target]]))
+        self.network.fit(last_sa.reshape(1,last_sa.size), np.array([[target]]))
         if(self.swap_counter % self.swap_iterations ==0 ):
             pass
 
 
 
     # e-greedy
-    def act(self,state):
+    def act(self,all_next_sas, reward, terminal):
 
         if(not self.initialised):
-            state_actions = list(self.state_action_preproc.enum(state))
-            sa = state_actions[0].reshape(1,state_actions[0].size)
+            sa = all_next_sas[0].reshape(1,all_next_sas[0].size)
             target = np.array([[0]])
             #print target.shape, sa.shape
             self.network.fit(sa,target)
 
-        b_action = np.array([self.target_network.predict(state_action.reshape(1,state_action.size) )for state_action in self.state_action_preproc.enum(state)]).argmax()
-
+        b_action = np.array([self.target_network.predict(state_action.reshape(1,state_action.size) )for state_action in all_next_sas]).argmax()
 
 
         if(np.random.random() < self.epsilon):
-            r =  np.random.randint( 0,len(state_actions))
+            r =  np.random.randint( 0,len(all_next_sas))
             #print "returning random action", r
-            return r
+            action =  r
         else:
             #print "returning best action", b_action
-            return b_action
+            action =  b_action
 
 
+        last_sa = self.last_sa
 
+        if(last_sa is not None):
+            self.__addToMemory(last_sa, reward, terminal, all_next_sas)
+
+
+        self.last_sa = all_next_sas[action]
+
+        return action
 
     def save(self):
         out_path = "./dq.pickle"
         pickle.dump(self, open(out_path, "wb"))
+
 
     @staticmethod
     def load():
