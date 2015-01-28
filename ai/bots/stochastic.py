@@ -15,5 +15,5 @@ class Stochastic(object):
         destination = random.choice(other_planets)
         return [Order(source, destination, source.ships / 2)]
 
-    def done(self, winner, ship_counts):
+    def done(self, won):
         pass

@@ -70,9 +70,9 @@ class PlanetWars:
         for view in self.views:
             view.game_over(winner, ship_counts)
 
-        for p in self.players:
+        for i, p in enumerate(self.players):
             try:
-                p.done(winner, ship_counts)
+                p.done(winner == i)
             except AttributeError:
                 pass
 
