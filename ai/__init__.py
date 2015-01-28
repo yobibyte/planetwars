@@ -6,4 +6,8 @@ def planetwars_ai(name):
         return f
     return planetwars_ai_decorator
 
+def planetwars_class(original):
+    PlanetWars.ais[original.__name__] = original()
+    return original
+
 from .bots import *

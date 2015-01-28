@@ -66,8 +66,15 @@ class PlanetWars:
                 view.update(planets, fleets)
             # Check for end game.
             winner, ship_counts = self.gameover()
+
         for view in self.views:
             view.game_over(winner, ship_counts)
+
+        for p in self.players:
+            try:
+                p.done(winner, ship_counts)
+            except AttributeError:
+                pass
 
     def do_turn(self):
         """Performs a single turn of the game."""
