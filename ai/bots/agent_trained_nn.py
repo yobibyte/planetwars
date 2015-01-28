@@ -26,10 +26,19 @@ class DeepBot(object):
 
   def __init__(self):
     layers  =  [("RectifiedLinear", 110),("RectifiedLinear", 110), ("Linear", )]
+<<<<<<< HEAD
     self.bot = DeepQ(layers)
     self.avg_reward = 0
     self.games = 0
 
+=======
+    try:
+        self.bot = DqqpQ.load()
+        print "Loaded"
+    except:
+        self.bot = DeepQ(layers)
+        print "Not loaded"
+>>>>>>> b48417ea0c7a179eddfe7321d2e7979d199da3a2
 
   def __call__(self, turn, pid, planets, fleets):
 
@@ -174,8 +183,12 @@ class DeepBot(object):
 
   # inform learner that game ended
   def done(self, won):
+<<<<<<< HEAD
     self.bot.addToMemory (self.bot.last_sa, float(won), 1, None)
     self.bot.train_from_memory(10000)
+=======
+    self.bot.train_from_memory(0)
+>>>>>>> b48417ea0c7a179eddfe7321d2e7979d199da3a2
     self.save()
 
     self.avg_reward+=float(won)
