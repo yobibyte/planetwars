@@ -1,7 +1,10 @@
 __author__ = 'ssamot'
 
-from sknn.pylearn2mplo import pylearn2MLPO, IncrementalMinMaxScaler
+from ai.bots.nn.sknn.sknn import sknn, IncrementalMinMaxScaler
 import numpy as np
+import pickle
+
+
 
 class DeepQ():
 
@@ -13,7 +16,7 @@ class DeepQ():
 
     def __init__(self, layers, state_action_preproc,  dropout = False, input_scaler=IncrementalMinMaxScaler(), output_scaler=IncrementalMinMaxScaler(),   learning_rate=0.01, verbose=0):
         self.memory = []
-        self.network = pylearn2MLPO(layers, dropout, input_scaler, output_scaler, learning_rate,verbose)
+        self.network = sknn(layers, dropout, input_scaler, output_scaler, learning_rate,verbose)
         ##self.target_network = pylearn2MLPO()
         self.target_network = self.network
         self.gamma = 0.9
@@ -70,5 +73,15 @@ class DeepQ():
 
 
 
+    def save(self):
+        out_path = "./dq.pickle"
+        pickle.dump(self, open(out_path, "wb"))
 
+    @staticmethod
+    def load():
+        try:
+            with open("./dq.pickle","r") as f:
+                return pickle.load(f)
+        except IOError as e:
+            raise RuntimeError(e)
 
