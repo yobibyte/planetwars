@@ -14,7 +14,7 @@ class DeepQ():
     def __init__(self, layers,  dropout = False, input_scaler=IncrementalMinMaxScaler(), output_scaler=IncrementalMinMaxScaler(),   learning_rate=0.005, verbose=0):
         self.max_memory = 500000
         self.memory = []
-        self.network = sknn(layers, dropout, input_scaler, output_scaler, learning_rate,verbose)
+        self.network = sknn(layers, dropout, None, None, learning_rate,verbose)
         ##self.target_network = pylearn2MLPO()
         self.target_network = self.network
         self.gamma = 0.95

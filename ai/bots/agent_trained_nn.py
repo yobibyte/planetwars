@@ -169,6 +169,7 @@ class DeepBot(object):
     order_ids = bot_act(fm, 0)
 
     npfm = np.array(fm)
+    npfm = npfm/1000.0
     bestord_id = self.bot.act(npfm,0,0)
     #self.bot.fit(0, 0, npfm)
     order_ids = [ bestord_id]
