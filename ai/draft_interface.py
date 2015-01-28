@@ -8,5 +8,5 @@ def bot_act(state_action_feature_vectors, transition_reward):
 
 # is called when game ends
 # won: true iff player won the game
-def bot_done(won)
+def bot_done(won):
   pass
