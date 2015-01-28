@@ -110,5 +110,7 @@ class DeepQ():
 
     def __getstate__(self):
         #print self.__dict__.keys()
-        return dict((k, v) for (k, v) in self.__dict__.iteritems() if k != "memory")
+        tbr =  dict((k, v) for (k, v) in self.__dict__.iteritems() if k != "memory")
+        tbr["memory"] = []
+        return tbr
 
