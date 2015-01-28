@@ -18,6 +18,7 @@ def dist(src, dst):
   d = math.sqrt(dx*dx + dy*dy)
   return d
 
+
 @planetwars_ai("AgentTrainedNN")
 def agent_trained_nn(turn, pid, planets, fleets):
 
@@ -133,6 +134,9 @@ def agent_trained_nn(turn, pid, planets, fleets):
         #print tally[dst.id, i],
       #print
 
+      # todo: add more percentage options
+      # need to create one feature vector for each option
+
       perc = 50 # ship percentage
       
       fv.append(perc)  
@@ -148,3 +152,7 @@ def agent_trained_nn(turn, pid, planets, fleets):
     orders.append(all_orders[id])
 
   return orders
+
+# inform learner that game ended
+def done(self, won):
+  bot_done(won)
