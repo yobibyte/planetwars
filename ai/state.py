@@ -1,7 +1,10 @@
 # PlanetWars State Representation
 #
+# written by Michael Buro and Graham Kendall Jan-27-2015
+#
 # - generate orders
-# - execute single orders
+# - execute single order for one player
+# - execute orders for both players
 
 from collections import defaultdict
 from planetwars import Fleet, Planet, Order
@@ -15,8 +18,10 @@ class State:
 
   # generate list of all possible order for player pid
   def generate_orders(self, pid):
+
     def mine(x):
       return x.owner == pid
+
     my_planets, other_planets = partition(mine, self.planets)
     
     res = []
@@ -86,4 +91,3 @@ class State:
       destination = order.destination # !!! was: self.planets[order.destination.id]
       source.ships -= ships
       self.fleets.append(Fleet(player, ships, source, destination))
-
