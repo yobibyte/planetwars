@@ -37,11 +37,10 @@ class DeepQ():
             t_data = self.memory[r]
             self.fit(*t_data)
 
-
-
-    def __maxQ(self, sas):
-        Q = np.array([self.target_network.predict(state_action.reshape(1,state_action.size) )for state_action in sas])
-        return Q.max()
+    def __Qs(self,sas):
+        #Q = np.array([self.target_network.predict(state_action.reshape(1,state_action.size) )for state_action in sas])
+        Q = self.target_network.predict(sas)
+        return Q
 
 
     def fit(self,last_sa, reward, terminal, all_next_sas):
@@ -49,7 +48,7 @@ class DeepQ():
         gamma = self.gamma
         maxQ = 0
         if terminal == 0:
-            maxQ = self.__maxQ(all_next_sas)
+            maxQ = self.__Qs(all_next_sas).max()
 
         target = reward  + (1-terminal) * gamma * maxQ
         self.network.fit(last_sa.reshape(1,last_sa.size), np.array([[target]]))
@@ -67,7 +66,6 @@ class DeepQ():
             #print target.shape, sa.shape
             self.network.fit(sa,target)
 
-        b_action = np.array([self.target_network.predict(state_action.reshape(1,state_action.size) )for state_action in all_next_sas]).argmax()
 
 
         if(np.random.random() < self.epsilon):
@@ -76,6 +74,7 @@ class DeepQ():
             action =  r
         else:
             #print "returning best action", b_action
+            b_action = self.__Qs(all_next_sas).argmax()
             action =  b_action
 
 
