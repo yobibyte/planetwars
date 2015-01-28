@@ -22,7 +22,9 @@ def main(argv):
                         help="Number of neutral planets.")
     parser.add_argument('--genmaps', action='store_true', required=False, default=False,
                         help="Generate random maps.")
-    
+    parser.add_argument('--quiet', action='store_true', required=False, default=False,
+                        help="Suppress all output to the console.")
+
     arguments, remaining = parser.parse_known_args(argv)
 
     seed = 0
