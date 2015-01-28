@@ -91,3 +91,48 @@ class State:
       destination = order.destination # !!! was: self.planets[order.destination.id]
       source.ships -= ships
       self.fleets.append(Fleet(player, ships, source, destination))
+
+  # generate random start state
+  # point symmetric planets
+  # (no ships in the air)
+  # todo: get in charge of rng seed to make runs repeatable
+  # (should also apply
+  def random_setup(p1_planets, p2_planets, neutral_planets):
+
+    WH     = 25.0  # Width/Height
+    MARGIN = 1.0   # Margin
+
+    self.planets = []
+    self.fleets = []
+
+    pmax = math.max(p1_players, p2_players)
+
+    if neutral_planets % 2 == 1:
+      # odd: create neutral planet at center
+      add_planet(MID, MID, 0, rnd_ships(), rnd_growth())
+      neutral_planets--
+
+    # create pmax+neutral_planet/2 symmetrical planet pairs
+    # with neutral excess planets
+    id = 0
+    for i in range(pmax+neutral_planets/2):
+      x = rnd_coord(WH, MARGIN)
+      y = rnd_coord(WH, MARGIN)
+      s = rnd_ships()
+      g = rnd_growth()
+      p1 = 1 if i < p1_planets else 0
+      p2 = 2 if i < p2_planets else 0
+      add_planet(x, y,       p1, s, g, id++)
+      add_planet(WH-x, WH-y, p2, s, g, id++)
+
+   def add_planet(x, y, owner, ships, growth, id):
+     self.planets.append(ImmutablePlanet(id, x, y, ownwer, ships, growth))
+     
+   def rnd_coord(WH, MARGIN):
+     return random.random()*(WH-2*MARGIN)+MARGIN
+
+   def rnd_ships():
+     return random.randint(5, 100)
+
+   def rnd_growth():
+     return random.randint(1, 5)
