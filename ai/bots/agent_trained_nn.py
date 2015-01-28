@@ -1,7 +1,7 @@
 # single-neuron agent using trained weights
 # written by Michael Buro
 
-import numpy
+import numpy as np
 import random
 import math
 
@@ -78,7 +78,7 @@ class DeepBot(object):
     # incoming friendly ships count 1, incoming enemy ships count -1
     # for each planet we tally incoming ship for time buckets 0..buckets-1
     # where buckets refers to the maximum distance on the map
-    tally = numpy.zeros((len(planets), buckets))
+    tally = np.zeros((len(planets), buckets))
 
     for f in fleets:
       # d = remaining distance
@@ -159,11 +159,11 @@ class DeepBot(object):
 
     order_ids = bot_act(fm, 0)
 
-    orders = self.bot.act(fm,0,0)
-    self.bot.fit(0, 0, fm)
-    # order_ids = [ 0 ]
-    
-    orders = [orders]
+    npfm = np.array(fm)
+    bestord_id = self.bot.act(npfm,0,0)
+    self.bot.fit(0, 0, npfm)
+    order_ids = [ bestord_id]
+    orders = []
     for id in order_ids:
       orders.append(all_orders[id])
 

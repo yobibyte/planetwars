@@ -25,6 +25,7 @@ class DeepQ():
         self.initialised = False
 
         self.memory = []
+        self.last_sa = None
 
     def __addToMemory(self, last_sa, reward, terminal, all_next_sas):
         self.memory+=[(last_sa,reward,terminal,all_next_sas)]
