@@ -175,12 +175,12 @@ def select_move(pid, planets, fleets):
         best_sum = sum
         best_orders.append(Order(src, dst, src.ships/2))
 
-  print "#ORDERS: ", len(best_orders),
+  # print "#ORDERS: ", len(best_orders),
   best_order = random.choice(best_orders)
 
-  if best_order.source == best_order.destination:
-    print "SAME PLANET!"
-  print
+  #if best_order.source == best_order.destination:
+  #  print "SAME PLANET!"
+  #print
   return [best_order]
 
 @planetwars_ai("AgentTest")
