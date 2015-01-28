@@ -11,14 +11,14 @@ class DeepQ():
     A Q learning agent
     """
 
-    def __init__(self, layers,  dropout = False, input_scaler=IncrementalMinMaxScaler(), output_scaler=IncrementalMinMaxScaler(),   learning_rate=0.005, verbose=0):
+    def __init__(self, layers,  dropout = False, input_scaler=IncrementalMinMaxScaler(), output_scaler=IncrementalMinMaxScaler(),   learning_rate=0.002, verbose=0):
         self.max_memory = 500000
         self.memory = []
         self.network = sknn(layers, dropout, input_scaler, output_scaler, learning_rate,verbose)
         ##self.target_network = pylearn2MLPO()
         self.target_network = self.network
         self.gamma = 0.95
-        self.epsilon = 0.2
+        self.epsilon = 0.3
         print 'gamma', self.gamma, 'epsilon', self.epsilon, 'lr', learning_rate
         self.swap_iterations = 10000
         self.swap_counter = 0
@@ -41,7 +41,8 @@ class DeepQ():
         else:
            print "not enough"
         if len(self.memory) > self.max_memory:
-            self.memory = self.memory[self.max_memory/2:]
+           print "clipped memory"
+           self.memory = self.memory[self.max_memory/2:]
 
     def __Qs(self,sas):
         #Q = np.array([self.target_network.predict(state_action.reshape(1,state_action.size) )for state_action in sas])
