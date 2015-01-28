@@ -1,6 +1,5 @@
-# single-neuron agent with manually "tuned" weights
-# written by Michael Buro and Simon Lucas, Jan-27-2015
-# with the help of Alex Champandard
+# single-neuron agent using trained weights
+# written by Michael Buro
 
 import numpy
 import random
@@ -10,6 +9,7 @@ from .. import planetwars_ai
 from planetwars.datatypes import Order
 from planetwars.utils import *
 from ..state import State
+from ..draft_interface import bot_act
 
 # Euclidean distance
 def dist(src, dst):
@@ -18,50 +18,22 @@ def dist(src, dst):
   d = math.sqrt(dx*dx + dy*dy)
   return d
 
-
-# evaluate state (after executing action)
-# pairwise features (source i, target j)
-#   
-def select_move(pid, planets, fleets):
+@planetwars_ai("AgentTrainedNN")
+def agent_trained_nn(turn, pid, planets, fleets):
 
   assert pid == 1 or pid == 2, "what?"
 
   my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
   your_planets, neutral_planets = partition(lambda x: x.owner != 0, other_planets)
 
+# create feature matrix
+# [  feature_list for move 1, ... , feature_list for move n ]
+#
   if len(my_planets) == 0:
     return []
 
 #  for i,p in enumerate(planets):
 #    print "PLANET: ", i, p.id, "x=", p.x, "y=", p.y, p.owner, p.ships
-  
-  # weights
-  wv = [
-    +1.0,  # src ships
-    -2.1,  # dest ships
-    +0.0,  # my ships total
-    +0.0,  # your ships total
-    +0.0,  # neutral ship total
-    +0.0,  # my total growth
-    +0.0,  # your total growth
-    -1.5,  # distance , was -1.5
-    +0.0,  # I own dst planet
-    +9.0,  # you own dst planet
-    +5.0,  # neutral own dst planet    
-    -0.5,  # src growth
-    +1.0,  # dst growth
-  ]
-
-  # incoming ship buckets
-  buckets = 10
-
-  # src incoming ship buckets
-  for i in range(buckets):
-    wv.append(-i*0.5)
-
-  # dst incoming ship buckets
-  for i in range(buckets):
-    wv.append(-i*0.5)
   
   my_ships_total = 0
   your_ships_total = 0
@@ -105,8 +77,8 @@ def select_move(pid, planets, fleets):
       b = buckets-1
     tally[f.destination, b] += f.ships * (1 if f.owner == pid else -1)
   
-  best_sum = float("-inf")
-  best_orders = []
+  all_orders = []
+  fmatrix = []
   
   for src in my_planets:
     for dst in planets:
@@ -160,46 +132,19 @@ def select_move(pid, planets, fleets):
         fv.append(tally[dst.id, i])
         #print tally[dst.id, i],
       #print
+
+      perc = 50 # ship percentage
       
-      assert len(fv) == len(wv), "lengths disagree " + str(len(fv)) + " " + str(len(wv))
+      fv.append(perc)  
+      
+      fm.append(fv);
+      all_orders.append(Order(src, dst, ships*perc/100))
 
-      # compute value (weights * features)
-      sum = 0
-      for i,f in enumerate(fv):
-        sum += f*wv[i]
+  # intermediate reward = 0 for now      
+  order_ids = bot_act(fm, 0)
 
-      # update best action (use tie-breaker?)
-      if sum >= best_sum:
-        if sum > best_sum:
-          best_orders = []
-        best_sum = sum
-        best_orders.append(Order(src, dst, src.ships/2))
+  orders = []
+  for id in order_ids:
+    orders.append(all_orders[id])
 
-  print "#ORDERS: ", len(best_orders),
-  best_order = random.choice(best_orders)
-
-  if best_order.source == best_order.destination:
-    print "SAME PLANET!"
-  print
-  return [best_order]
-
-@planetwars_ai("AgentTest")
-def agenttest_ai(turn, pid, planets, fleets):
-  return select_move(pid, planets, fleets)
-
-# my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
-# state  = State(planets, fleets)
-# orders = state.generate_orders(pid)
-
-# for p in planets:
-#   print "planet: ", p.id, p.x, p.y, p.owner, p.ships, p.growth
-
-# for f in fleets:
-#   print "fleet: ", f.owner, f.ships, f.source, f.destination, f.total_turns, f.remaining_turns
-
-# for o in orders:
-#   print "order:", o.source.id, o.destination.id, o.ships
-
-# returned_orders = [random.choice(orders)]
-# print "RETURNED: ", returned_orders
-# return returned_orders
+  return orders

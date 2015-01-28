@@ -1,4 +1,6 @@
 
-# returns an integer picking among the legal actions
-def bot_act(liast_of_state_action_feature_vectors, last_transition_reward, last_terminal_signal):
+# returns list of integers that encode concurrent actions to be executed
+# (e.g. all actions with values > max_value - epsilon)
+# 
+def bot_act(state_action_feature_vectors, transition_reward):
   pass

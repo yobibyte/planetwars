@@ -1,0 +1,7 @@
+#!/bin/bash
+if [ "$2" == "" ]
+then
+  echo "I need two players"
+  exit 1
+fi
+python play.py $@
