@@ -75,6 +75,8 @@ class PlanetWars:
                 p.done(winner == i)
             except AttributeError:
                 pass
+        return winner, ship_counts
+
 
     def do_turn(self):
         """Performs a single turn of the game."""

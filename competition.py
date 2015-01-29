@@ -42,6 +42,8 @@ def main(argv):
       print "p1num=", arguments.p1num
       print "p2num=", arguments.p2num
       print "nnum=",  arguments.nnum
+
+    sums = [0, 0, 0]
     
     for i in range(arguments.games):
       if arguments.genmaps:
@@ -50,9 +52,15 @@ def main(argv):
         game = PlanetWars(remaining[:2], planets=state.planets, fleets=state.fleets, collisions=arguments.collisions)
       else:
         game = PlanetWars(remaining[:2], map_name="map%i" % random.randint(1,100), collisions=arguments.collisions)
-      game.play()
-      sys.stdout.write('.')
-      sys.stdout.flush()
+      winner, ship_counts = game.play()
+      print "game ", i, " winner = ", winner
+      sums [winner] += 1
+      print sums
+
+      #sys.stdout.write('.')
+      #sys.stdout.flush()
+
+    print sums
 
 if __name__ == '__main__':
     import sys
