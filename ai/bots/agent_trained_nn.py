@@ -35,8 +35,9 @@ class DeepBot(object):
         self.bot = DeepQ.load()
         print "Loaded"
     except:
-        self.bot = DeepQ(layers)
+        self.bot = DeepQ(layers, learning_rate=0.001)
         print "Not loaded"
+
 
   def __call__(self, turn, pid, planets, fleets):
 
@@ -188,16 +189,18 @@ class DeepBot(object):
     return orders
 
   # inform learner that game ended
-  def done(self, won):
+  # won = true <=> player won
+  # turns: #turns until game ended
+  def done(self, won, turns):
     self.games += 1
     self.avg_reward += float(won) - 0.5
     #self.bot.fit(self.bot.last_sa, float(won), 1, None)
     self.bot.addToMemory(self.bot.last_sa, float(won), 1, None)
     self.bot.last_sa = None
-    if self.games % 10 == 0:
+    if self.games % 25 == 0:
       print '#', int(self.games), "(%i)" % len(self.bot.memory), self.avg_reward/self.games*2
       print "Training...",      
-      self.bot.train_from_memory(1000)
+      self.bot.train_from_memory(10000)
       print "DONE!"
       self.avg_reward = 0.0
       self.games = 0

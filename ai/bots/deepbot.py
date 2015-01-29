@@ -7,6 +7,7 @@ from planetwars.utils import *
 @planetwars_class
 class Stochastic(object):
 
+
     def __call__(self, turn, pid, planets, fleets):
         def mine(x):
             return x.owner == pid
@@ -17,5 +18,5 @@ class Stochastic(object):
         destination = random.choice(other_planets)
         return [Order(source, destination, source.ships / 2)]
 
-    def done(self, won):
+    def done(self, won, turns):
         pass
