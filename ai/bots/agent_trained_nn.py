@@ -27,7 +27,7 @@ np.set_printoptions(threshold='nan')
 class DeepBot(object):
 
   def __init__(self):
-    layers  =  [("RectifiedLinear", 25), ("Linear", )]
+    layers  =  [("RectifiedLinear", 25),  ("Linear", )]
     self.avg_reward = 0
     self.games = 0
     self.scaler = IncrementalMinMaxScaler()
@@ -35,7 +35,7 @@ class DeepBot(object):
         self.bot = DeepQ.load()
         print "Loaded"
     except:
-        self.bot = DeepQ(layers, learning_rate=0.005)
+        self.bot = DeepQ(layers, learning_rate=0.01)
         print "Not loaded"
 
 
@@ -201,11 +201,11 @@ class DeepBot(object):
         reward = -1
     self.bot.addToMemory(self.bot.last_sa, reward, 1, None)
     self.bot.last_sa = None
-    if self.games % 25 == 0:
+    self.bot.train_from_memory(1000)
+    if self.games % 20 == 0:
       print '#', int(self.games), "(%i)" % len(self.bot.memory), self.avg_reward/self.games*2
-      print "Training...",      
-      self.bot.train_from_memory(50000)
-      print "DONE!"
+      #print "Training...",      
+      #print "DONE!"
       self.avg_reward = 0.0
       self.games = 0
       #self.bot.save()

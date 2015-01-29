@@ -15,13 +15,9 @@ class DeepQ():
         self.max_memory = 500000
         self.memory = []
         self.network = sknn(layers, dropout, None, None, learning_rate,verbose)
-        ##self.target_network = pylearn2MLPO()
-        self.target_network = self.network
-        self.gamma = 0.95
+        self.gamma = 0.98
         self.epsilon = 0.1
         print 'gamma', self.gamma, 'epsilon', self.epsilon, 'lr', learning_rate
-        self.swap_iterations = 10000
-        self.swap_counter = 0
 
         self.initialised = False
 
@@ -34,7 +30,7 @@ class DeepQ():
     def train_from_memory(self, updates):
 
         if len(self.memory) > 1000:
-          updates = min(len(self.memory), updates)
+          updates = min(len(self.memory)/2, updates)
           inputs = np.zeros((updates, self.memory[0][0].size))
           targets = np.zeros((updates, 1))
           for update in range(updates):
@@ -57,26 +53,24 @@ class DeepQ():
 
 
     def __Qs(self,sas):
-        #Q = np.array([self.target_network.predict(state_action.reshape(1,state_action.size) )for state_action in sas])
-        Q = self.target_network.predict(sas)
-
+        Q = self.network.predict(sas)
         return Q
 
     def computeTarget(self, last_sa, reward, terminal, all_next_sas):
-        #last_sa = self.last_sa
         gamma = self.gamma
-        maxQ = 0
+        V = 0
         if terminal == 0:
-            maxQ = self.__Qs(all_next_sas).max()
+            Qs = self.__Qs(all_next_sas)
+            maxQ = Qs.max()
+            V = maxQ * (1-self.epsilon) + self.epsilon * Qs.mean()
             #print maxQ
 
-        target = reward  + (1-terminal) * gamma * maxQ
+        target = reward  + (1-terminal) * gamma * V
 
         return target
 
 
     def fit(self,last_sa, reward, terminal, all_next_sas):
-        #last_sa = self.last_sa
         gamma = self.gamma
         maxQ = 0
         if terminal == 0:
