@@ -32,7 +32,6 @@ def all_to_close_or_weak(turn, pid, planets, fleets):
     other_planets = their_planets + neutral_planets
     if len(their_planets) == 0:
       return []
-    if 
     their_weakest = min(their_planets, key=get_ships)
     my_total = sum(map(get_ships, my_planets))
     destination = min(their_planets, key=get_ships)
