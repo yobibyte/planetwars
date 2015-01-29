@@ -19,6 +19,7 @@ from werkzeug.serving import run_with_reloader
 from planetwars import PlanetWars
 from planetwars.internal import natural_key
 from planetwars.views import RealtimeView
+from ai.state import State
 
 app = Flask(__name__)
 monkey.patch_all()
@@ -97,10 +98,26 @@ def create_game():
     p1 = request.form["p1"]
     p2 = request.form["p2"]
     m = request.form.get("map", "Random")
+    planets = None
+    fleets = None
+    state = State()
+
     if m == "Random":
         m = random.choice(PlanetWars.maps.keys())
+    if m == "Generate":
+        m = None
+        state.random_setup(2, 2, 10)
+    c = request.form["collisions"]
+    if c == "True":
+        c = True
+    else:
+        c = False
+                        
     tps = float(request.form.get("tps", 8))
-    games[game_id] = PlanetWars([p1, p2], m, turns_per_second=tps)
+    seed = random.randint(1,2000000000)
+    print "############ SEED=", seed
+    
+    games[game_id] = PlanetWars([p1, p2], m, state.planets, state.fleets, turns_per_second=tps, collisions=c)
     view = WebsocketView(game_id)
     games[game_id].add_view(view)
     Thread(target=games[game_id].play).start()

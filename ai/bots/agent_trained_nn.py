@@ -11,6 +11,7 @@ from planetwars.utils import *
 from ..state import State
 from ..draft_interface import bot_act
 from ..bots.nn.deepq.deepq import DeepQ
+from ..bots.nn.sknn.sknn import IncrementalMinMaxScaler
 
 
 # Euclidean distance
@@ -20,15 +21,16 @@ def dist(src, dst):
   d = math.sqrt(dx*dx + dy*dy)
   return d
 
+np.set_printoptions(threshold='nan')
 
 @planetwars_class
 class DeepBot(object):
 
   def __init__(self):
-    layers  =  [("RectifiedLinear", 20), ("Linear", )]
+    layers  =  [("RectifiedLinear", 150), ("Linear", )]
     self.avg_reward = 0
-
     self.games = 0
+    self.scaler = IncrementalMinMaxScaler()
     try:
         self.bot = DeepQ.load()
         print "Loaded"
@@ -127,11 +129,11 @@ class DeepBot(object):
         fv.append(d)
 
         # I own dst planet
-        fv.append(1 if dst.id == pid else 0)
+        fv.append(1.0 if dst.id == pid else 0.0)
         # you own dst planet
-        fv.append(1 if dst.id != 0 and dst.id != pid else 0)
+        fv.append(1.0 if dst.id != 0 and dst.id != pid else 0.0)
         # neutral owns dst planet
-        fv.append(1 if dst.id == 0 else 0)
+        fv.append(1.0 if dst.id == 0 else 0.0)
 
         # growth
         fv.append(src.growth)
@@ -158,8 +160,7 @@ class DeepBot(object):
         # need to create one feature vector for each option
 
         perc = 50 # ship percentage
-        
-        fv.append(perc)  
+        # fv.append(perc)  
         
         fm.append(fv);
         all_orders.append(Order(src, dst, src.ships*perc/100))
@@ -167,8 +168,16 @@ class DeepBot(object):
     # intermediate reward = 0 for now      
 
     order_ids = bot_act(fm, 0)
-
+    
     npfm = np.array(fm)
+    npfm += np.array([0., 0., 0., 118., 0., 5., 43., 0., 0., 0., 0., 0., 0., -257., -320., -338., -288., -502., -329., -213., -129., -106., -106., -381.
+, -381., -381., -458., -502., -329., -219., -129., -106., -106.])
+    npfm /= np.array([6.2700E+02, 6.2700E+02, 6.2700E+02, 2.8440E+03, 5.7900E+02, 0.0000E+00, 5.0000E+01, 3.31519109E+01, 1.0, 1.0, 1.0,\
+                      5.0000E+00, 5.0000E+00, 5.7900E+02, 6.8700E+02, 6.3600E+02, 6.0100E+02, 8.1500E+02, 4.7200E+02, 3.4500E+02, 2.7200E+02, 3.0500E+02,\
+                      2.3800E+02, 7.0300E+02, 7.4800E+02, 7.4200E+02, 8.1900E+02, 8.1500E+02, 6.0300E+02, 4.2200E+02, 2.9700E+02, 3.0500E+02, 2.5000E+02])
+    # self.scaler.fit(npfm)
+    npfm = npfm.clip(0.0, 1.0)
+    # print npfm
     bestord_id = self.bot.act(npfm,0,0)
     #self.bot.fit(0, 0, npfm)
     order_ids = [ bestord_id]
@@ -180,17 +189,21 @@ class DeepBot(object):
 
   # inform learner that game ended
   def done(self, won):
-
-    self.games+=1.0
-    print 'after', int(self.games), self.avg_reward/self.games*2
+    self.games += 1
+    print '#', int(self.games), "(%i)" % len(self.bot.memory), self.avg_reward/self.games*2
     self.bot.fit(self.bot.last_sa, float(won), 1, None)
-    self.bot.addToMemory (self.bot.last_sa, float(won), 1, None)
-    self.bot.train_from_memory(10000)
-    #self.bot.save()
+    self.bot.addToMemory(self.bot.last_sa, float(won), 1, None)
+    if self.games % 25 == 0:
+      print "Training...",      
+      self.bot.train_from_memory(10000)
+      print "DONE!"
+      self.avg_reward = 0.0
+      self.bot.save()
 
-    self.avg_reward+=float(won)-0.5
+    #print 'after', int(self.games), self.avg_reward/self.games*2
+    self.avg_reward += float(won) - 0.5
     #if(self.games % 1 == 0 ):
     #self.avg_reward = 0
 
-
-
+    # print self.scaler.data_min
+    # print self.scaler.data_max - self.scaler.data_min
