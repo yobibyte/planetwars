@@ -75,7 +75,7 @@ class PlanetWars:
                 p.done(winner == i)
             except AttributeError:
                 pass
-        
+
     def do_turn(self):
         """Performs a single turn of the game."""
 
@@ -188,7 +188,7 @@ class PlanetWars:
         if len(living) == 1:
           # count_ships returns descending (p,count) pairs
           return living[0], count_ships(self.planets, self.fleets), self.turn
-        elif self.turn >= 200:
+        elif self.turn >= 100:
           ship_counts = count_ships(self.planets, self.fleets)
           ship_counts = [(p, s) for p, s in ship_counts if p > 0]
           winner = 0 if ship_counts[0][1] == ship_counts[1][1] else ship_counts[0][0]

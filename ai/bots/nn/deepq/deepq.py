@@ -95,7 +95,7 @@ class DeepQ():
             target = np.array([[0]])
             #print target.shape, sa.shape
             self.network.fit(sa,target)
-
+            self.initialised = True
 
 
         if(np.random.random() < self.epsilon):

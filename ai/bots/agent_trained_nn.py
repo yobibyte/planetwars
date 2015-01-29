@@ -35,8 +35,9 @@ class DeepBot(object):
         self.bot = DeepQ.load()
         print "Loaded"
     except:
-        self.bot = DeepQ(layers)
+        self.bot = DeepQ(layers, learning_rate=0.001)
         print "Not loaded"
+
 
   def __call__(self, turn, pid, planets, fleets):
 
@@ -196,7 +197,7 @@ class DeepBot(object):
     self.bot.last_sa = None
     if self.games % 50 == 0:
       print "Training...",      
-      self.bot.train_from_memory(100)
+      self.bot.train_from_memory(10000)
       print "DONE!"
       self.avg_reward = 0.0
       self.games = 0
