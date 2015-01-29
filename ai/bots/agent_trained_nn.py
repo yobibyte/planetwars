@@ -189,7 +189,9 @@ class DeepBot(object):
     return orders
 
   # inform learner that game ended
-  def done(self, won):
+  # won = true <=> player won
+  # turns: #turns until game ended
+  def done(self, won, turns):
     self.games += 1
     print '#', int(self.games), "(%i)" % len(self.bot.memory), self.avg_reward/self.games*2
     self.bot.fit(self.bot.last_sa, float(won), 1, None)
