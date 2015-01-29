@@ -100,11 +100,12 @@ def create_game():
     m = request.form.get("map", "Random")
     planets = None
     fleets = None
+    state = State()
+
     if m == "Random":
         m = random.choice(PlanetWars.maps.keys())
     if m == "Generate":
         m = None
-        state = State()
         state.random_setup(2, 2, 10)
                         
     tps = float(request.form.get("tps", 8))
