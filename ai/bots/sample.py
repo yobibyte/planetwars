@@ -30,12 +30,15 @@ def all_to_close_or_weak(turn, pid, planets, fleets):
     if len(my_planets) == 0:
       return []
     other_planets = their_planets + neutral_planets
-    if len(other_planets) == 0:
+    if len(their_planets) == 0:
       return []
+    if 
     their_weakest = min(their_planets, key=get_ships)
     my_total = sum(map(get_ships, my_planets))
     destination = min(their_planets, key=get_ships)
     orders = []
+    if len(other_planets) == 0:
+      return []
     for planet in my_planets:
         if random.random() < 0.5:
             def dist_to(other_planet):
