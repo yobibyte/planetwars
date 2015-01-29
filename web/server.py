@@ -108,12 +108,17 @@ def create_game():
     if m == "Generate":
         m = None
         state.random_setup(2, 2, 10)
+    c = request.form["collisions"]
+    if c == "True":
+        c = True
+    else:
+        c = False
                         
     tps = float(request.form.get("tps", 8))
     seed = random.randint(1,2000000000)
     print "############ SEED=", seed
     
-    games[game_id] = PlanetWars([p1, p2], m, state.planets, state.fleets, turns_per_second=tps)
+    games[game_id] = PlanetWars([p1, p2], m, state.planets, state.fleets, turns_per_second=tps, collisions=c)
     view = WebsocketView(game_id)
     games[game_id].add_view(view)
     Thread(target=games[game_id].play).start()

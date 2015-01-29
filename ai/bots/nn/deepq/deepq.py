@@ -17,8 +17,8 @@ class DeepQ():
         self.network = sknn(layers, dropout, None, None, learning_rate,verbose)
         ##self.target_network = pylearn2MLPO()
         self.target_network = self.network
-        self.gamma = 0.95
-        self.epsilon = 0.2
+        self.gamma = 0.9
+        self.epsilon = 0.5
         print 'gamma', self.gamma, 'epsilon', self.epsilon, 'lr', learning_rate
         self.swap_iterations = 10000
         self.swap_counter = 0
@@ -32,21 +32,45 @@ class DeepQ():
         self.memory+=[(last_sa,reward,terminal,all_next_sas)]
 
     def train_from_memory(self, updates):
+
         if len(self.memory) > 1000:
           updates = min(len(self.memory), updates)
+          inputs = np.zeros((updates, self.memory[0][0].size))
+          targets = np.zeros((updates, 1))
           for update in range(updates):
+
             r = np.random.randint(len(self.memory))
-            t_data = self.memory[r]
-            self.fit(*t_data)
+            input = self.memory[r]
+            target = self.computeTarget(*input)
+
+            inputs[update] = input[0]
+            targets[update] = target
+
+          self.network.fit(inputs, targets)
         else:
            print "not enough"
         if len(self.memory) > self.max_memory:
-            self.memory = self.memory[self.max_memory/2:]
+           print "clipped memory"
+           self.memory = self.memory[self.max_memory/2:]
+
+
+
 
     def __Qs(self,sas):
         #Q = np.array([self.target_network.predict(state_action.reshape(1,state_action.size) )for state_action in sas])
         Q = self.target_network.predict(sas)
         return Q
+
+    def computeTarget(self, last_sa, reward, terminal, all_next_sas):
+        #last_sa = self.last_sa
+        gamma = self.gamma
+        maxQ = 0
+        if terminal == 0:
+            maxQ = self.__Qs(all_next_sas).max()
+
+        target = reward  + (1-terminal) * gamma * maxQ
+
+        return target
 
 
     def fit(self,last_sa, reward, terminal, all_next_sas):
@@ -80,9 +104,17 @@ class DeepQ():
             action =  r
         else:
             #print "returning best action", b_action
-            b_action = self.__Qs(all_next_sas).argmax()
-            action =  b_action
+            Q = self.__Qs(all_next_sas)
+            maxQ = Q.max()
+            actions = []
+            for i,q in enumerate(Q):
+                if(q == maxQ):
+                    actions.append(i)
+            #print actions
+            b_action = actions[np.random.randint(len(actions))]
 
+            #print b_action
+            action =  b_action
 
         last_sa = self.last_sa
 
