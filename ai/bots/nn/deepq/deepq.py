@@ -59,6 +59,7 @@ class DeepQ():
     def __Qs(self,sas):
         #Q = np.array([self.target_network.predict(state_action.reshape(1,state_action.size) )for state_action in sas])
         Q = self.target_network.predict(sas)
+
         return Q
 
     def computeTarget(self, last_sa, reward, terminal, all_next_sas):
@@ -67,6 +68,7 @@ class DeepQ():
         maxQ = 0
         if terminal == 0:
             maxQ = self.__Qs(all_next_sas).max()
+            #print maxQ
 
         target = reward  + (1-terminal) * gamma * maxQ
 

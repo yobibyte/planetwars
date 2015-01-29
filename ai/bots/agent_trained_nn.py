@@ -195,7 +195,11 @@ class DeepBot(object):
     self.games += 1
     self.avg_reward += float(won) - 0.5
     #self.bot.fit(self.bot.last_sa, float(won), 1, None)
-    self.bot.addToMemory(self.bot.last_sa, float(won), 1, None)
+    if(won):
+        reward = 1
+    else:
+        reward = -1
+    self.bot.addToMemory(self.bot.last_sa, reward, 1, None)
     self.bot.last_sa = None
     if self.games % 25 == 0:
       print '#', int(self.games), "(%i)" % len(self.bot.memory), self.avg_reward/self.games*2
