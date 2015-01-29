@@ -183,6 +183,7 @@ class DeepBot(object):
 
     self.games+=1.0
     print 'after', int(self.games), self.avg_reward/self.games*2
+    self.bot.fit(self.bot.last_sa, float(won), 1, None)
     self.bot.addToMemory (self.bot.last_sa, float(won), 1, None)
     self.bot.train_from_memory(10000)
     #self.bot.save()
