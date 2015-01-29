@@ -133,7 +133,7 @@ class sknn():
         inputs = self.mlp.get_input_space().make_theano_batch()
         self.f = theano.function([inputs], self.mlp.fprop(inputs))
 
-    def fit(self, X, y, epochs=1):
+    def fit(self, X, y, epochs=100):
         """
         :param X: Training data
         :param y:
