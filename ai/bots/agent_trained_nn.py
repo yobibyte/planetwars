@@ -35,7 +35,7 @@ class DeepBot(object):
         self.bot = DeepQ.load()
         print "Loaded"
     except:
-        self.bot = DeepQ(layers, learning_rate=0.001)
+        self.bot = DeepQ(layers, learning_rate=0.01)
         print "Not loaded"
 
 
@@ -200,7 +200,7 @@ class DeepBot(object):
     if self.games % 25 == 0:
       print '#', int(self.games), "(%i)" % len(self.bot.memory), self.avg_reward/self.games*2
       print "Training...",      
-      self.bot.train_from_memory(10000)
+      self.bot.train_from_memory(50000)
       print "DONE!"
       self.avg_reward = 0.0
       self.games = 0
