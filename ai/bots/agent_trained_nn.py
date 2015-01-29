@@ -48,7 +48,7 @@ class DeepBot(object):
   # create feature matrix
   # [  feature_list for move 1, ... , feature_list for move n ]
   #
-    if len(my_planets) == 0:
+    if len(my_planets) == 0 or len(other_planets) == 0:
       return []
 
   #  for i,p in enumerate(planets):

@@ -70,10 +70,11 @@ class WebsocketView:
         asdicts = [p._asdict() for p in planets], [f._asdict() for f in fleets]
         GamesNamespace.emit_to_game(self.game, "update", json.dumps(asdicts))
 
-    def game_over(self, winner, ship_counts):
+    def game_over(self, winner, ship_counts, turns):
         GamesNamespace.emit_to_game(self.game, "gameOver", json.dumps({
-            "winner": winner,
-            "shipCounts": ship_counts,
+          "winner": winner,
+          "shipCounts": ship_counts,
+          "turns": turns
         }))
         del GamesNamespace.games[self.game]
         if self.game in games:

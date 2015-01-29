@@ -27,10 +27,10 @@ def select_move(pid, planets, fleets):
   assert pid == 1 or pid == 2, "what?"
 
   my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
-  your_planets, neutral_planets = partition(lambda x: x.owner != 0, other_planets)
-
-  if len(my_planets) == 0:
+  if len(my_planets) == 0 or len(other_planets) == 0:
     return []
+
+  your_planets, neutral_planets = partition(lambda x: x.owner != 0, other_planets)
 
 #  for i,p in enumerate(planets):
 #    print "PLANET: ", i, p.id, "x=", p.x, "y=", p.y, p.owner, p.ships
