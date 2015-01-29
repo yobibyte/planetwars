@@ -11,7 +11,7 @@ class DeepQ():
     A Q learning agent
     """
 
-    def __init__(self, layers,  dropout = False, input_scaler=IncrementalMinMaxScaler(), output_scaler=IncrementalMinMaxScaler(),   learning_rate=0.005, verbose=0):
+    def __init__(self, layers,  dropout = False, input_scaler=IncrementalMinMaxScaler(), output_scaler=IncrementalMinMaxScaler(),   learning_rate=0.0005, verbose=0):
         self.max_memory = 500000
         self.memory = []
         self.network = sknn(layers, dropout, None, None, learning_rate,verbose)
@@ -46,7 +46,7 @@ class DeepQ():
             inputs[update] = input[0]
             targets[update] = target
 
-          self.network.fit(inputs, targets)
+          self.network.fit(inputs, targets, 10)
         else:
            print "not enough"
         if len(self.memory) > self.max_memory:
