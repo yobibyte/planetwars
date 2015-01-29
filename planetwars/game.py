@@ -72,7 +72,7 @@ class PlanetWars:
 
         for i, p in enumerate(self.players):
             try:
-                p.done(winner == i)
+                p.done(winner == i, turns)
             except AttributeError:
                 pass
         
