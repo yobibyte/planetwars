@@ -34,7 +34,7 @@ class sknn():
         cost = None
         if(dropout):
             cost = Dropout()
-        self.trainer = sgd.SGD(learning_rate=learning_rate, cost = cost, batch_size=1)
+        self.trainer = sgd.SGD(learning_rate=learning_rate, cost = cost, batch_size=100)
 
 
         self.input_normaliser = input_scaler
@@ -133,7 +133,7 @@ class sknn():
         inputs = self.mlp.get_input_space().make_theano_batch()
         self.f = theano.function([inputs], self.mlp.fprop(inputs))
 
-    def fit(self, X, y):
+    def fit(self, X, y, epochs=100):
         """
         :param X: Training data
         :param y:
@@ -147,7 +147,8 @@ class sknn():
         ds.X = X_s
         ds.y = y_s
         #print X_s,y_s
-        self.trainer.train(dataset=ds)
+        for e in range(epochs):
+            self.trainer.train(dataset=ds)
         return self
 
     def predict(self, X):

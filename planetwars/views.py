@@ -57,11 +57,12 @@ class TextView():
             self.print_planet(planet, fleets)
         self.old_planets = planets
 
-    def game_over(self, winner, ship_counts):
+    def game_over(self, winner, ship_counts, turns):
         if winner > 0:
             print("Player %d wins!" % winner)
         else:
             print("Tie!")
+        print "Turns:", turns
         print("Final ship counts:")
         for player, ships in ship_counts:
             if player > 0:
@@ -98,7 +99,7 @@ class RealtimeView:
             if sleep_duration > 0:
                 time.sleep(sleep_duration)
         for view in self.wrapped_views:
-            view.game_over(self.winner, self.ship_counts)
+            view.game_over(self.winner, self.ship_counts, self.turns)
 
     def next_frame(self):
         for planet in self.planets:
@@ -118,6 +119,7 @@ class RealtimeView:
             self.planets = [Planet(*planet) for planet in planets]
             self.fleets = [Fleet(*fleet) for fleet in fleets]
 
-    def game_over(self, winner, ship_counts):
+    def game_over(self, winner, ship_counts, turns):
         self.winner = winner
         self.ship_counts = ship_counts
+        self.turns = turns
