@@ -1,3 +1,9 @@
+# agenttest2.py
+#
+# a clone of agenttest.py
+# aim: improve agenttest by adding and tuning features manually
+# Bruno Bouzy, Jan 29 2015 with the help of Michael Buro 
+#
 # single-neuron agent with manually "tuned" weights
 # written by Michael Buro and Simon Lucas, Jan-27-2015
 # with the help of Alex Champandard
@@ -27,69 +33,46 @@ def select_move(pid, planets, fleets):
   assert pid == 1 or pid == 2, "what?"
 
   my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
-  if len(my_planets) == 0 or len(other_planets) == 0:
-    return []
-
   your_planets, neutral_planets = partition(lambda x: x.owner != 0, other_planets)
+
+  if len(my_planets) == 0:
+    return []
 
 #  for i,p in enumerate(planets):
 #    print "PLANET: ", i, p.id, "x=", p.x, "y=", p.y, p.owner, p.ships
   
   # weights
-  use_new = True
-  if use_new:
-	wv = [
-      +3.0,  # src ships
-      -1.25,  # dest ships
-      +0.0,  # my ships total
-      +0.0,  # your ships total
-      +0.0,  # neutral ship total
-      +0.0,  # my total growth
-      +0.0,  # your total growth
-      -6.0,  # distance , was -1.5
-      +0.0,  # I own dest planet
-      +30.0, # opponent owns dest planet
-      +5,    # neutral owns dest planet    
-      -1.0,  # src growth
-      +2.0,  # dest growth
-    ]
-
-  else:
-    wv = [
-     +1.0,  # src ships
-     -2.1,  # dest ships
-     +0.0,  # my ships total
-     +0.0,  # your ships total
-     +0.0,  # neutral ship total
-     +0.0,  # my total growth
-     +0.0,  # your total growth
-     -1.5,  # distance , was -1.5
-     +0.0,  # I own dst planet
-     +9.0,  # you own dst planet
-     +5.0,  # neutral own dst planet    
-     -0.5,  # src growth
-     +1.0,  # dst growth
-   ]
+  wv = [
+    +3.0,  # src ships
+    -1.25,  # dest ships
+    +0.0,  # my ships total
+    +0.0,  # your ships total
+    +0.0,  # neutral ship total
+    +0.0,  # my total growth
+    +0.0,  # your total growth
+    -6.0,  # distance , was -1.5
+    +0.0,  # I own dest planet
+    +30.0, # opponent owns dest planet
+    +5,    # neutral owns dest planet    
+    -1.0,  # src growth
+    +2.0,  # dest growth
+  ]
 
   # incoming ship buckets
   buckets = 10
 
-  if use_new:
-    weight_bucket = 2
-    # src incoming ship buckets
-    for i in range(buckets):
-      wv.append(-(i+1)*weight_bucket)
-    # dst incoming ship buckets
-    for i in range(buckets):
-      wv.append(-(i+1)*weight_bucket)
+  weight_bucket = 2
+  # src incoming ship buckets
+  for i in range(buckets):
+    wv.append(-(i+1)*weight_bucket)
+    #wv.append(weight_bucket/(1+i))
+    #wv.append(-i*0.5)
 
-  else:
-    # src incoming ship buckets
-    for i in range(buckets):
-      wv.append(-i*0.5)
-    # dst incoming ship buckets
-    for i in range(buckets):
-      wv.append(-i*0.5)
+  # dst incoming ship buckets
+  for i in range(buckets):
+    wv.append(-(i+1)*weight_bucket)
+    #wv.append(weight_bucket/(1+i))
+    #wv.append(-i*0.5)
   
   my_ships_total = 0
   your_ships_total = 0
@@ -195,6 +178,7 @@ def select_move(pid, planets, fleets):
       sum = 0
       for i,f in enumerate(fv):
         sum += f*wv[i]
+
       # print "Agent2: ", src.id, dst.id, sum
 
       # update best action (use tie-breaker?)
@@ -202,10 +186,8 @@ def select_move(pid, planets, fleets):
         if sum > best_sum:
           best_orders = []
         best_sum = sum
-        if use_new:
-          best_orders.append(Order(src, dst, src.ships*0.45))
-        else:
-          best_orders.append(Order(src, dst, src.ships/2))
+        # best_orders.append(Order(src, dst, src.ships/2))
+        best_orders.append(Order(src, dst, src.ships*0.45))
 
   # print "#ORDERS: ", len(best_orders),
   best_order = random.choice(best_orders)
@@ -213,10 +195,10 @@ def select_move(pid, planets, fleets):
   #if best_order.source == best_order.destination:
   #  print "SAME PLANET!"
   #print
-  # print "AgentTest: ", best_order
+  # print "AgentTest2: ", best_order
   return [best_order]
 
-@planetwars_ai("AgentTest")
+@planetwars_ai("AgentTest2")
 def agenttest_ai(turn, pid, planets, fleets):
   return select_move(pid, planets, fleets)
 
