@@ -1,6 +1,7 @@
 __author__ = 'ssamot, schaul'
 
 from ai.bots.nn.sknn.sknn import sknn, IncrementalMinMaxScaler
+import collections
 import numpy as np
 import cPickle as pickle
 
@@ -24,7 +25,7 @@ class DeepQ(object):
         self.initialised = False
 
         self.memory = []
-        self.episode = []
+        self.episodes = collections.defaultdict(list)
         self.last_sa = None
         self.last_s = None
         self.last_q = None
@@ -83,7 +84,7 @@ class DeepQ(object):
         if self.swap_counter % self.swap_iterations == 0:
             pass
 
-    def act_qs(self, state, reward, terminal, n_actions, q_filter):
+    def act_qs(self, state, reward, terminal, n_actions, q_filter, episode=0):
         # Make sure the deep neural network has been correctly initialized given
         # the exact input and output dimensions.
         self.n_actions = n_actions
@@ -103,18 +104,18 @@ class DeepQ(object):
 
         last_s, last_q = self.last_s, self.last_q
         if last_s is not None and not terminal:
-            self.episode.append([last_s, last_q, action, reward])
+            self.episodes[episode].append([last_s, last_q, action, reward])
 
         if terminal:            
             r, i = reward / self.gamma, 0           
-            for ps, pq, action, reward in reversed(self.episode):
+            for ps, pq, action, reward in reversed(self.episodes[episode]):
                 r = max(-1.0, min(+1.0, r * self.gamma + reward))
                 # sqa.max() * (1.0 - self.epsilon) + self.epsilon * sqa.mean()
-
+                # if reward > 0.0: 
                 self.memory.append([ps, action, r])
                 i += 1
 
-            self.episode = []
+            self.episodes[episode] = []
             self.last_s = None
             self.last_q = None
         else:
@@ -122,28 +123,47 @@ class DeepQ(object):
             self.last_q = qs
         return action
 
-    def train_qs(self, n_updates):
-        updates = min(len(self.memory), n_updates)
+    def train_qs(self, n_samples, n_epochs):
+        updates = min(len(self.memory) / 2, n_samples)
         inputs = np.zeros((updates, self.memory[0][0].size))
         targets = np.zeros((updates, self.n_actions))
 
-        for i in range(updates):
+        current = self.network.predict(np.array([m[0] for m in self.memory]))
+
+        i, threshold = 0, 0.5
+        min_e, max_e = float("inf"), -float("inf")
+        while i < updates:
             r = np.random.randint(len(self.memory))
             state, action, reward = self.memory[r]
-            
-            current = self.network.predict(np.array([state]))
+            e = abs(current[r][action] - reward)
+            if e < threshold:
+                threshold -= 0.0000001
+                continue
+
+            min_e = min(e, min_e)
+            max_e = max(e, max_e)
+
             mask = np.zeros((self.n_actions))
             mask[action] = 1.0
-            targets[i] = current * (1.0 - mask) + reward * mask
+            targets[i] = current[r] * (1.0 - mask) + reward * mask
             inputs[i] = state
-        print "  - samples %i" % (updates)
+            i += 1
+        print "  - samples %i: %f / %f" % (updates, min_e, max_e)
 
-        self.network.fit(inputs, targets, epochs=2)
+        self.network.fit(inputs, targets, epochs=n_epochs)
         predicted = self.network.predict(inputs)
         error = (targets - predicted) ** 2
         print "  - error %f / %f / %f" % (error.min(), error.mean(), error.max())
         print "  - predicted %f / %f / %f" % (predicted.min(), predicted.mean(), predicted.max())
         print "  - targets %f / %f / %f" % (targets.min(), targets.mean(), targets.max())
+
+        memory = []
+        for i, m in enumerate(self.memory):
+            state, action, reward = m
+            if abs(current[i][action] - reward) > 0.05:
+                memory.append(m)
+        print "  - pruned %i" % (len(self.memory) - len(memory))
+        self.memory = memory
 
     # e-greedy
     def act(self,all_next_sas, reward, terminal):
