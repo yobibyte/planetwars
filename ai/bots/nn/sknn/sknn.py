@@ -189,15 +189,16 @@ class IncrementalMinMaxScaler():
             X = np.append(X, [self.data_max], axis = 0)
 
         feature_range = self.feature_range
-        data_min = np.min(X, axis=0, )
+        data_min = np.min(X, axis=0)
         data_max = np.max(X, axis=0)
 
-        if((self.data_min == data_min).all() and (self.data_max==data_max).all()):
-            pass
-        else:
-            #print "changed"
+        if not (self.data_min == data_min).all():
+            # print "min changed" # , data_min - self.data_min
             self.changed = True
 
+        if not (self.data_max == data_max).all():
+            # print "max changed" # , data_max - self.data_max
+            self.changed = True
 
         self.data_min = data_min
         self.data_max = data_max

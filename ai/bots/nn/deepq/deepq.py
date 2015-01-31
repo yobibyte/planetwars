@@ -11,19 +11,20 @@ class DeepQ(object):
     A Q learning agent
     """
 
-    def __init__(self, layers,  dropout=False, input_scaler=IncrementalMinMaxScaler(), output_scaler=IncrementalMinMaxScaler(), learning_rate=0.001, verbose=0):
+    def __init__(self, layers,  dropout=False, input_scaler=None, output_scaler=None, learning_rate=0.001, verbose=0):
         self.max_memory = 500000
         self.memory = []
-        self.network = sknn(layers, dropout, input_scaler, None, learning_rate,verbose)
+        self.network = sknn(layers, dropout, input_scaler, output_scaler, learning_rate,verbose)
         ##self.target_network = pylearn2MLPO()
         self.target_network = self.network
         self.gamma = 0.95
-        self.epsilon = 0.1
+        self.epsilon = 0.15
         print 'gamma', self.gamma, 'epsilon', self.epsilon, 'lr', learning_rate
 
         self.initialised = False
 
         self.memory = []
+        self.episode = []
         self.last_sa = None
         self.last_s = None
         self.last_q = None
@@ -54,8 +55,6 @@ class DeepQ(object):
            self.memory = self.memory[self.max_memory/2:]
 
 
-
-
     def __Qs(self,sas):
         Q = self.network.predict(sas)
         return Q
@@ -73,7 +72,6 @@ class DeepQ(object):
 
         return target
 
-
     def fit(self,last_sa, reward, terminal, all_next_sas):
         gamma = self.gamma
         maxQ = 0
@@ -82,54 +80,68 @@ class DeepQ(object):
 
         target = reward  + (1-terminal) * gamma * maxQ
         self.network.fit(last_sa.reshape(1,last_sa.size), np.array([[target]]))
-        if(self.swap_counter % self.swap_iterations ==0 ):
+        if self.swap_counter % self.swap_iterations == 0:
             pass
 
     def act_qs(self, state, reward, terminal, n_actions, q_filter):
+        # Make sure the deep neural network has been correctly initialized given
+        # the exact input and output dimensions.
+        self.n_actions = n_actions
         if not self.initialised:
             sa = state.reshape(1, state.size)
             target = np.zeros((1, n_actions))
             self.network.linit(sa, target)
             self.initialised = True
 
-        qs = self.__Qs(np.array([state]))[0]
+        # Compute the next Q-values for all actions in this state.  These are 
+        # filtered based on which are available, specified by game logic.
+        qs = self.__Qs(np.array([state]))[0] * q_filter
         if np.random.random() < self.epsilon:
             action = np.random.randint(0, n_actions)
         else:
-            action = (qs * q_filter).argmax()
+            action = qs.argmax()
 
         last_s, last_q = self.last_s, self.last_q
-        if last_s is not None:
-            rewards = np.zeros((n_actions,))
-            rewards[action] = reward + qs[action] * 0.99
-            self.addToMemory(last_s, (last_q+rewards).clip(-1.0, 1.0), terminal, state)
-        self.last_s = state
-        self.last_q = qs
+        if last_s is not None and not terminal:
+            self.episode.append([last_s, last_q, action, reward])
+
+        if terminal:            
+            r, i = reward / self.gamma, 0           
+            for ps, pq, action, reward in reversed(self.episode):
+                r = max(-1.0, min(+1.0, r * self.gamma + reward))
+                # sqa.max() * (1.0 - self.epsilon) + self.epsilon * sqa.mean()
+
+                self.memory.append([ps, action, r])
+                i += 1
+
+            self.episode = []
+            self.last_s = None
+            self.last_q = None
+        else:
+            self.last_s = state
+            self.last_q = qs
         return action
 
-    def train_qs(self, n_updates, n_last=0, latest_ratio=0.15):
+    def train_qs(self, n_updates):
         updates = min(len(self.memory), n_updates)
         inputs = np.zeros((updates, self.memory[0][0].size))
-        targets = np.zeros((updates, self.memory[0][1].size))
+        targets = np.zeros((updates, self.n_actions))
 
-        if len(self.memory)-n_last == 0:
-            latest_ratio = 1.0
-
-        n_latest, n_random = 0, 0
         for i in range(updates):
-            if np.random.random() < latest_ratio:                    
-                r = np.random.randint(len(self.memory)-n_last, len(self.memory))
-                n_latest += 1
-            else:
-                r = np.random.randint(len(self.memory)-n_last)
-                n_random += 1
-            sample = self.memory[r]
-            inputs[i] = sample[0]
-            targets[i] = sample[1]
-        print "  - samples %iR / %iL" % (n_random, n_latest)
-        self.network.fit(inputs, targets, epochs=10)
+            r = np.random.randint(len(self.memory))
+            state, action, reward = self.memory[r]
+            
+            current = self.network.predict(np.array([state]))
+            mask = np.zeros((self.n_actions))
+            mask[action] = 1.0
+            targets[i] = current * (1.0 - mask) + reward * mask
+            inputs[i] = state
+        print "  - samples %i" % (updates)
+
+        self.network.fit(inputs, targets, epochs=2)
         predicted = self.network.predict(inputs)
-        print "  - error %f" % ((targets - predicted) ** 2).mean()
+        error = (targets - predicted) ** 2
+        print "  - error %f / %f / %f" % (error.min(), error.mean(), error.max())
         print "  - predicted %f / %f / %f" % (predicted.min(), predicted.mean(), predicted.max())
         print "  - targets %f / %f / %f" % (targets.min(), targets.mean(), targets.max())
 

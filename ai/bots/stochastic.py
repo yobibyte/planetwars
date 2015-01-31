@@ -9,9 +9,11 @@ from .sample import all_to_close_or_weak
 @planetwars_class
 class Stochastic(object):
 
+    EPSILON = 0.0
+
     def __call__(self, turn, pid, planets, fleets):
-        # if random.random() > 0.99:
-        #    return all_to_close_or_weak(turn, pid, planets, fleets)
+        if random.random() < Stochastic.EPSILON:
+            return all_to_close_or_weak(turn, pid, planets, fleets)
 
         def mine(x):
             return x.owner == pid
@@ -24,5 +26,5 @@ class Stochastic(object):
         destination = random.choice(other_planets)
         return [Order(source, destination, source.ships / 2)]
 
-    def done(self, won, turns):
+    def done(self, *args):
         pass
