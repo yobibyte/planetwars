@@ -19,7 +19,7 @@ class sknn():
     you have access all your data upfront
     """
 
-    def __init__(self, layers, dropout = False, input_scaler = None, output_scaler = None,   learning_rate=0.01, verbose=0):
+    def __init__(self, layers, dropout=False, input_scaler = None, output_scaler = None,   learning_rate=0.01, verbose=0):
         """
 
         :param layers: List of tuples of types of layers alongside the number of neurons
@@ -59,7 +59,7 @@ class sknn():
         else:
             return self.output_normaliser.inverse_transform(y)
 
-    def __linit(self, X, y):
+    def linit(self, X, y):
         if(self.verbose > 0):
             print "Lazy initialisation"
 
@@ -140,7 +140,7 @@ class sknn():
         :return:
         """
         if(self.ds is None):
-            self.__linit(X, y)
+            self.linit(X, y)
 
         ds = self.ds
         X_s,y_s = self.__scale(X,y)
@@ -164,7 +164,7 @@ class sknn():
         return y_s
 
 class IncrementalMinMaxScaler():
-    def __init__(self, feature_range=(0.0,1.0)):
+    def __init__(self, feature_range=(-1.0,1.0)):
         self.feature_range = feature_range
         self.changed = False
         self.init = False
