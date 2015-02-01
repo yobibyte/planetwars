@@ -1,3 +1,5 @@
+from gevent import monkey; monkey.patch_all(); del monkey
+
 import os
 import sys
 
@@ -8,7 +10,7 @@ import random
 import string
 import time
 from flask import abort, Flask, redirect, render_template, Response, request
-from gevent import monkey
+
 from random import choice
 from socketio import socketio_manage
 from socketio.namespace import BaseNamespace
@@ -22,7 +24,6 @@ from planetwars.views import RealtimeView
 from ai.state import State
 
 app = Flask(__name__)
-monkey.patch_all()
 
 games = {}
 
