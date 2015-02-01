@@ -27,8 +27,7 @@ class DeepQ(object):
         self.memory = []
         self.episodes = collections.defaultdict(list)
         self.last_sa = None
-        self.last_s = None
-        self.last_q = None
+        self.last = {}
 
     def addToMemory(self, *args):
         self.memory += [args]
@@ -102,7 +101,7 @@ class DeepQ(object):
         else:
             action = qs.argmax()
 
-        last_s, last_q = self.last_s, self.last_q
+        last_s, last_q = self.last.get(episode, (None, None))
         if last_s is not None and not terminal:
             self.episodes[episode].append([last_s, last_q, action, reward])
 
@@ -116,11 +115,9 @@ class DeepQ(object):
                 i += 1
 
             self.episodes[episode] = []
-            self.last_s = None
-            self.last_q = None
+            self.last[episode] = (None, None)
         else:
-            self.last_s = state
-            self.last_q = qs
+            self.last[episode] = (state, qs)
         return action
 
     def train_qs(self, n_samples, n_epochs):

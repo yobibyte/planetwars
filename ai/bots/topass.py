@@ -25,10 +25,13 @@ class TopAss(object):
         self.games = 0
         self.winloss = 0
         self.total_reward = 0.0
+        self.epsilon = 1.0
 
-    def __call__(self, turn, pid, planets, fleets, master=True):
-        if master:
-            self.__call__(turn, 3-pid, planets, fleets, master=False)
+    def __call__(self, turn, pid, planets, fleets):
+        if pid == 1:
+            self.bot.epsilon = 0.15
+        else:
+            self.bot.epsilon = self.epsilon
 
         a_inputs = self.createInputVector(pid, planets, fleets)
 
@@ -56,10 +59,7 @@ class TopAss(object):
         else:
             return []
 
-    def done(self, turns, pid, planets, fleets, won, master=True):
-        if master:
-            self.done(turns, 3-pid, planets, fleets, not won, master=False)
-
+    def done(self, turns, pid, planets, fleets, won):
         a_inputs = self.createInputVector(pid, planets, fleets)
         n_actions = len(planets) * len(planets)
         if turns == 200:
@@ -70,7 +70,7 @@ class TopAss(object):
         self.bot.act_qs(a_inputs, score, terminal=True, n_actions=n_actions,
                         q_filter=0.0, episode=pid)
 
-        if not master:
+        if pid != 1:
             return
 
         self.games += 1
@@ -85,9 +85,9 @@ class TopAss(object):
             
             self.bot.train_qs(n_samples=50000, n_epochs=10)
 
-            if self.winloss > -BATCH / 3 and Stochastic.EPSILON < 1.0:
-                Stochastic.EPSILON += 0.025
-                print "  - skill now %f" % (Stochastic.EPSILON)
+            if self.winloss > -BATCH / 3 and self.epsilon > 0.15:
+                self.epsilon -= 0.05
+                print "  - skill now %f" % (1 - self.epsilon)
             self.winloss = 0
         else:
             if turns == 200:
