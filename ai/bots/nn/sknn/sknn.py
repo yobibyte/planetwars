@@ -31,27 +31,24 @@ class sknn():
         self.ds = None
         self.f = None
         self.verbose = verbose
-        cost = None
-        if(dropout):
-            cost = Dropout()
-        self.trainer = sgd.SGD(learning_rate=learning_rate, cost = cost, batch_size=100)
-
+        cost = Dropout() if dropout else None
+        self.trainer = sgd.SGD(learning_rate=learning_rate, cost=cost, batch_size=100)
 
         self.input_normaliser = input_scaler
         self.output_normaliser = output_scaler
 
 
     def __scale(self,X,y):
-        if(self.input_normaliser is not None):
+        if self.input_normaliser is not None:
             X_s = self.input_normaliser.fit(X).transform(X)
         else:
             X_s = X
-        if(self.output_normaliser is not None and y is not None):
+        if self.output_normaliser is not None and y is not None:
             y_s = self.output_normaliser.fit(y).transform(y)
         else:
             y_s = y
 
-        return X_s,y_s
+        return X_s, y_s
 
     def __original_y(self,y):
         if(self.output_normaliser is None):

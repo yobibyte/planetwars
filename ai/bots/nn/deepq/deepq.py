@@ -47,7 +47,7 @@ class DeepQ(object):
             inputs[update] = input[0]
             targets[update] = target
 
-          self.network.fit(inputs, targets, 10)
+          self.network.fit(inputs, targets, 20)
         else:
            print "not enough"
         if len(self.memory) > self.max_memory:
@@ -93,37 +93,45 @@ class DeepQ(object):
             self.network.linit(sa, target)
             self.initialised = True
 
-        # Compute the next Q-values for all actions in this state.  These are 
-        # filtered based on which are available, specified by game logic.
-        qs = self.__Qs(np.array([state]))[0] * q_filter
-        if np.random.random() < self.epsilon:
-            action = np.random.randint(0, n_actions)
+        if not terminal:
+            if np.random.random() < self.epsilon:
+                nz = q_filter.nonzero()[0]
+                if len(nz):
+                    action = np.random.choice(nz)
+                else:
+                    action = None
+            else:
+                # Compute the next Q-values for all actions in this state.  These are 
+                # filtered based on which are available, specified by game logic.
+                qs = self.__Qs(np.array([state]))[0] * q_filter
+                action = qs.argmax()
         else:
-            action = qs.argmax()
+            action = None
 
-        last_s, last_q = self.last.get(episode, (None, None))
+        last_s = self.last.get(episode, None)
         if last_s is not None and not terminal:
-            self.episodes[episode].append([last_s, last_q, action, reward])
+            self.episodes[episode].append([last_s, action, reward])
 
         if terminal:            
             r, i = reward / self.gamma, 0           
-            for ps, pq, action, reward in reversed(self.episodes[episode]):
+            for ps, action, reward in reversed(self.episodes[episode]):
                 r = max(-1.0, min(+1.0, r * self.gamma + reward))
                 # sqa.max() * (1.0 - self.epsilon) + self.epsilon * sqa.mean()
                 # if reward > 0.0: 
-                self.memory.append([ps, action, r])
+                if action is not None:
+                    self.memory.append([ps, action, r])
                 i += 1
 
             self.episodes[episode] = []
-            self.last[episode] = (None, None)
+            self.last[episode] = None
         else:
-            self.last[episode] = (state, qs)
+            self.last[episode] = state
         return action
 
     def train_qs(self, n_samples, n_epochs):
         updates = min(len(self.memory) / 2, n_samples)
-        inputs = np.zeros((updates, self.memory[0][0].size))
-        targets = np.zeros((updates, self.n_actions))
+        inputs = np.zeros((updates, self.memory[0][0].size), dtype=np.float32)
+        targets = np.zeros((updates, self.n_actions), dtype=np.float32)
 
         current = self.network.predict(np.array([m[0] for m in self.memory]))
 
@@ -134,13 +142,13 @@ class DeepQ(object):
             state, action, reward = self.memory[r]
             e = abs(current[r][action] - reward)
             if e < threshold:
-                threshold -= 0.0000001
+                threshold -= 0.00001
                 continue
 
             min_e = min(e, min_e)
             max_e = max(e, max_e)
 
-            mask = np.zeros((self.n_actions))
+            mask = np.zeros((self.n_actions), dtype=np.float32)
             mask[action] = 1.0
             targets[i] = current[r] * (1.0 - mask) + reward * mask
             inputs[i] = state
@@ -154,13 +162,14 @@ class DeepQ(object):
         print "  - predicted %f / %f / %f" % (predicted.min(), predicted.mean(), predicted.max())
         print "  - targets %f / %f / %f" % (targets.min(), targets.mean(), targets.max())
 
+        self.threshold = np.percentile(error, 2.5)
         memory = []
         for i, m in enumerate(self.memory):
             state, action, reward = m
-            if abs(current[i][action] - reward) > 0.05:
+            if (current[i][action] - reward) ** 2 > threshold:
                 memory.append(m)
-        print "  - pruned %i" % (len(self.memory) - len(memory))
-        self.memory = memory
+        print "  - pruned %i" % (len(self.memory) - len(memory) * 0.99)
+        self.memory = memory[len(memory)/100:]
 
     # e-greedy
     def act(self,all_next_sas, reward, terminal):

@@ -11,7 +11,7 @@ def strong_to_weak(turn, pid, planets, fleets):
       return []
     my_strongest = max(my_planets, key=get_ships)
     their_weakest = min(their_planets, key=get_ships)
-    return [Order(my_strongest, their_weakest, my_strongest.ships * 0.75)]
+    return [Order(my_strongest, their_weakest, my_strongest.ships * 0.5)]
 
 @planetwars_ai("AllToWeak")
 def all_to_weak(turn, pid, planets, fleets):
