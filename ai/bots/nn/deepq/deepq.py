@@ -28,6 +28,8 @@ class DeepQ(object):
         self.episodes = collections.defaultdict(list)
         self.last_sa = None
         self.last = {}
+        self.inputs = None
+        self.targets = None
 
     def addToMemory(self, *args):
         self.memory += [args]
@@ -129,15 +131,16 @@ class DeepQ(object):
         return action
 
     def train_qs(self, n_samples, n_epochs):
-        updates = min(len(self.memory) / 2, n_samples)
-        inputs = np.zeros((updates, self.memory[0][0].size), dtype=np.float32)
-        targets = np.zeros((updates, self.n_actions), dtype=np.float32)
+        if self.inputs is None:
+            self.inputs = np.zeros((n_samples, self.memory[0][0].size), dtype=np.float32)
+        if self.targets is None:
+            self.targets = np.zeros((n_samples, self.n_actions), dtype=np.float32)
 
         current = self.network.predict(np.array([m[0] for m in self.memory]))
 
         i, threshold = 0, 0.5
         min_e, max_e = float("inf"), -float("inf")
-        while i < updates:
+        while i < n_samples:
             r = np.random.randint(len(self.memory))
             state, action, reward = self.memory[r]
             e = abs(current[r][action] - reward)
@@ -150,19 +153,19 @@ class DeepQ(object):
 
             mask = np.zeros((self.n_actions), dtype=np.float32)
             mask[action] = 1.0
-            targets[i] = current[r] * (1.0 - mask) + reward * mask
-            inputs[i] = state
+            self.targets[i] = current[r] * (1.0 - mask) + reward * mask
+            self.inputs[i] = state
             i += 1
-        print "  - samples %i: %f / %f" % (updates, min_e, max_e)
+        print "  - samples %i: %f / %f" % (n_samples, min_e, max_e)
 
-        self.network.fit(inputs, targets, epochs=n_epochs)
-        predicted = self.network.predict(inputs)
-        error = (targets - predicted) ** 2
+        self.network.fit(self.inputs, self.targets, epochs=n_epochs)
+        predicted = self.network.predict(self.inputs)
+        error = (self.targets - predicted) ** 2
         print "  - error %f / %f / %f" % (error.min(), error.mean(), error.max())
         print "  - predicted %f / %f / %f" % (predicted.min(), predicted.mean(), predicted.max())
-        print "  - targets %f / %f / %f" % (targets.min(), targets.mean(), targets.max())
-
-        self.threshold = np.percentile(error, 2.5)
+        print "  - targets %f / %f / %f" % (self.targets.min(), self.targets.mean(), self.targets.max())
+        
+        self.threshold = np.percentile(error, 1)
         memory = []
         for i, m in enumerate(self.memory):
             state, action, reward = m

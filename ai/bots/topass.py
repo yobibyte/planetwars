@@ -18,7 +18,8 @@ from .sample import strong_to_weak
 class TopAss(object):
 
     def __init__(self):
-        self.bot = DeepQ([("RectifiedLinear", 1500), ("RectifiedLinear", 1500), ("RectifiedLinear", 1500), ("Linear", )],
+        self.bot = DeepQ([("RectifiedLinear", 500), ("RectifiedLinear", 500),
+                          ("RectifiedLinear", 500), ("Linear", )],
                          dropout=True, learning_rate=0.001)
 
         self.last_score = None
@@ -98,12 +99,12 @@ class TopAss(object):
         self.winloss += int(score)
 
         # print '#', int(self.games), "(%i)" % len(self.bot.memory), self.total_reward/self.games*2
-        BATCH = 100 
+        BATCH = 50
         if self.games % BATCH == 0:
             print "\nIteration %i with ratio %+i as score %f." % (self.games/BATCH, self.winloss, self.total_reward / self.games)
             print "  - memory %i" % (len(self.bot.memory))
             
-            self.bot.train_qs(n_samples=25000, n_epochs=10)
+            self.bot.train_qs(n_samples=5000, n_epochs=10)
 
             if self.winloss > -BATCH / 3:
                 self.epsilon += 0.05
@@ -119,7 +120,7 @@ class TopAss(object):
 
     def createInputVector(self, pid, planets, fleets):
         indices = range(len(planets))
-        random.shuffle(indices)
+        # random.shuffle(indices)
 
         # 1) Three layers of ship counters for each faction.
         a_ships = numpy.zeros((len(planets), 3))
@@ -131,19 +132,8 @@ class TopAss(object):
             if p.owner != pid:
                a_ships[indices[p.id], 2] = p.ships
 
-            # 1) a_ships[p.id] = p.ships if p.owner == pid else -p.ships
-
-            """
-            2)
-            a_ships[p.id] = p.ships
-            owner = -1.0
-            if p.id == pid: owner = +1.0
-            if p.id == 0: owner = 0.0
-            a_owners[p.id] = owner
-            """
-
         # 2) Growth rate for all planets.
-        a_growths = numpy.array([p.growth for p in planets])
+        a_growths = numpy.array([planets[i].growth for i in indices])
 
         # 3) Distance matrix for planet pairs.
         a_dists = numpy.zeros((len(planets), len(planets)))

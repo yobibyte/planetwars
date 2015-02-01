@@ -32,7 +32,7 @@ class sknn():
         self.f = None
         self.verbose = verbose
         cost = Dropout() if dropout else None
-        self.trainer = sgd.SGD(learning_rate=learning_rate, cost=cost, batch_size=100)
+        self.trainer = sgd.SGD(learning_rate=learning_rate, cost=cost, batch_size=32)
 
         self.input_normaliser = input_scaler
         self.output_normaliser = output_scaler
