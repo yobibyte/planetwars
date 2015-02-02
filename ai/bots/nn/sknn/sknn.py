@@ -1,10 +1,13 @@
-import theano
-import numpy as np
+import sys
 import time
+import random
+
+import numpy as np
+import scipy.io
+import theano
+
 from pylearn2.datasets import DenseDesignMatrix
 from pylearn2.training_algorithms import sgd
-import scipy.io
-import random
 from pylearn2.models import mlp, maxout
 from pylearn2.costs.mlp.dropout import Dropout
 
@@ -32,7 +35,7 @@ class sknn():
         self.f = None
         self.verbose = verbose
         cost = Dropout() if dropout else None
-        self.trainer = sgd.SGD(learning_rate=learning_rate, cost=cost, batch_size=32)
+        self.trainer = sgd.SGD(learning_rate=learning_rate, cost=cost, batch_size=96)
 
         self.input_normaliser = input_scaler
         self.output_normaliser = output_scaler
@@ -144,8 +147,11 @@ class sknn():
         ds.X = X_s
         ds.y = y_s
         #print X_s,y_s
+        print "  - training",
         for e in range(epochs):
             self.trainer.train(dataset=ds)
+            sys.stdout.write('.')
+        print ""
         return self
 
     def predict(self, X):

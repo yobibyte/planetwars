@@ -90,6 +90,7 @@ class DeepQ(object):
         # the exact input and output dimensions.
         self.n_actions = n_actions
         if not self.initialised:
+            print 'S->A', state.shape, n_actions
             sa = state.reshape(1, state.size)
             target = np.zeros((1, n_actions))
             self.network.linit(sa, target)
@@ -136,43 +137,33 @@ class DeepQ(object):
         if self.targets is None:
             self.targets = np.zeros((n_samples, self.n_actions), dtype=np.float32)
 
-        current = self.network.predict(np.array([m[0] for m in self.memory]))
-
-        i, threshold = 0, 0.5
-        min_e, max_e = float("inf"), -float("inf")
-        while i < n_samples:
-            r = np.random.randint(len(self.memory))
-            state, action, reward = self.memory[r]
-            e = abs(current[r][action] - reward)
-            if e < threshold:
-                threshold -= 0.00001
-                continue
-
-            min_e = min(e, min_e)
-            max_e = max(e, max_e)
-
+        batch = []
+        for i in range(n_samples):
+            j = np.random.randint(len(self.memory))
+            state, action, reward = self.memory[j]
+            self.inputs[i] = state
+            batch.append((action, reward, j))
+    
+        original = self.network.predict(self.inputs)    
+        for i, (action, reward, _) in enumerate(batch):
             mask = np.zeros((self.n_actions), dtype=np.float32)
             mask[action] = 1.0
-            self.targets[i] = current[r] * (1.0 - mask) + reward * mask
-            self.inputs[i] = state
-            i += 1
-        print "  - samples %i: %f / %f" % (n_samples, min_e, max_e)
+            self.targets[i] = original[i] * (1.0 - mask) + reward * mask
+        print "  - targets %f / %f / %f" % (self.targets.min(), self.targets.mean(), self.targets.max())
 
         self.network.fit(self.inputs, self.targets, epochs=n_epochs)
         predicted = self.network.predict(self.inputs)
         error = (self.targets - predicted) ** 2
         print "  - error %f / %f / %f" % (error.min(), error.mean(), error.max())
         print "  - predicted %f / %f / %f" % (predicted.min(), predicted.mean(), predicted.max())
-        print "  - targets %f / %f / %f" % (self.targets.min(), self.targets.mean(), self.targets.max())
         
-        self.threshold = np.percentile(error, 1)
-        memory = []
-        for i, m in enumerate(self.memory):
-            state, action, reward = m
-            if (current[i][action] - reward) ** 2 > threshold:
-                memory.append(m)
-        print "  - pruned %i" % (len(self.memory) - len(memory) * 0.99)
-        self.memory = memory[len(memory)/100:]
+        prune = set()
+        threshold = 0.25
+        for i, (action, reward, index) in enumerate(batch):
+            if (predicted[i][action] - reward) ** 2 <= threshold:
+                prune.add(index)
+        print "  - pruned %i with threshold %f" % (len(prune), threshold)
+        self.memory = [m for i, m in enumerate(self.memory) if i not in prune]        
 
     # e-greedy
     def act(self,all_next_sas, reward, terminal):
@@ -214,7 +205,7 @@ class DeepQ(object):
 
     def save(self):
         out_path = "./dq.pickle"
-        pickle.dump(self, open(out_path, "wb"))
+        pickle.dump(self.network, open(out_path, "wb"))
 
 
     @staticmethod
