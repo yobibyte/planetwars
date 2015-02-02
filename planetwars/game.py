@@ -76,8 +76,7 @@ class PlanetWars:
                 if not isinstance(p, types.FunctionType):
                     p.done(turns, i, planets, fleets, winner == i)
             except AttributeError:
-                import traceback
-                traceback.print_exc()
+                pass
         return winner, ship_counts
 
 

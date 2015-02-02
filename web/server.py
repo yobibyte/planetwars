@@ -134,7 +134,7 @@ def push_stream(rest):
                          exc_info=True)
     return Response()
 
-@run_with_reloader
+# @run_with_reloader
 def run_dev_server():
     app.debug = True
     port = 4200
