@@ -71,6 +71,14 @@ class Hotshot( object ):
         my_planets, their_planets, neutral_planets = aggro_partition( pid, planets )
         orders = [] 
 
+        if random.random() < 0.15 and False:
+            other_planets = their_planets+neutral_planets
+            if not my_planets or not other_planets:
+                return []
+            source = random.choice(my_planets)
+            destination = random.choice(other_planets)
+            return [Order(source, destination, source.ships / 2)]
+
         docked = 0
         flying = 0
         for planet in my_planets:

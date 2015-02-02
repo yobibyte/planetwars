@@ -1,10 +1,11 @@
 __author__ = 'ssamot, schaul'
 
-from ai.bots.nn.sknn.sknn import sknn, IncrementalMinMaxScaler
+import math
 import collections
-import numpy as np
 import cPickle as pickle
 
+from ai.bots.nn.sknn.sknn import sknn, IncrementalMinMaxScaler
+import numpy as np
 
 
 class DeepQ(object):
@@ -12,24 +13,27 @@ class DeepQ(object):
     A Q learning agent
     """
 
-    def __init__(self, layers,  dropout=False, input_scaler=None, output_scaler=None, learning_rate=0.001, verbose=0):
-        self.max_memory = 500000
-        self.memory = []
-        self.network = sknn(layers, dropout, input_scaler, output_scaler, learning_rate,verbose)
-        ##self.target_network = pylearn2MLPO()
-        self.target_network = self.network
-        self.gamma = 0.95
-        self.epsilon = 0.15
-        print 'gamma', self.gamma, 'epsilon', self.epsilon, 'lr', learning_rate
+    def __init__(self, layers, dropout=False, input_scaler=None, output_scaler=None, learning_rate=0.001, verbose=0):
+        self.network = sknn(layers, dropout, input_scaler, output_scaler, learning_rate, verbose)
+        
+        self.gamma = 0.99
+        self.epsilon = 0.15        
 
         self.initialised = False
 
         self.memory = []
+        self.last_training = 0
+        
+        # Storage for information about multiple episodes at the same time, e.g for
+        # adversarial search.
         self.episodes = collections.defaultdict(list)
-        self.last_sa = None
         self.last = {}
+
+        # Save numpy arrays so resizng/reallocating doesn't cause fragmentation on GPU.
         self.inputs = None
         self.targets = None
+
+        self.last_sa = None
 
     def addToMemory(self, *args):
         self.memory += [args]
@@ -131,39 +135,65 @@ class DeepQ(object):
             self.last[episode] = state
         return action
 
-    def train_qs(self, n_samples, n_epochs):
-        if self.inputs is None:
-            self.inputs = np.zeros((n_samples, self.memory[0][0].size), dtype=np.float32)
-        if self.targets is None:
-            self.targets = np.zeros((n_samples, self.n_actions), dtype=np.float32)
-
-        batch = []
-        for i in range(n_samples):
-            j = np.random.randint(len(self.memory))
-            state, action, reward = self.memory[j]
-            self.inputs[i] = state
-            batch.append((action, reward, j))
-    
-        original = self.network.predict(self.inputs)    
-        for i, (action, reward, _) in enumerate(batch):
-            mask = np.zeros((self.n_actions), dtype=np.float32)
-            mask[action] = 1.0
-            self.targets[i] = original[i] * (1.0 - mask) + reward * mask
-        print "  - targets %f / %f / %f" % (self.targets.min(), self.targets.mean(), self.targets.max())
-
-        self.network.fit(self.inputs, self.targets, epochs=n_epochs)
-        predicted = self.network.predict(self.inputs)
-        error = (self.targets - predicted) ** 2
-        print "  - error %f / %f / %f" % (error.min(), error.mean(), error.max())
-        print "  - predicted %f / %f / %f" % (predicted.min(), predicted.mean(), predicted.max())
+    def train_qs(self, n_epochs, n_ratio=0.5, n_batch=5000):
+        n_samples = len(self.memory) - self.last_training
         
+        if self.inputs is None:
+            self.inputs = np.zeros((n_batch, self.memory[0][0].size), dtype=np.float32)
+        if self.targets is None:
+            self.targets = np.zeros((n_batch, self.n_actions), dtype=np.float32)
+
+        error_stats = [+float("inf"), 0.0, -float("inf")]
+        target_stats = [+float("inf"), 0.0, -float("inf")]
+        pred_stats = [+float("inf"), 0.0, -float("inf")]
+
+        epochs = int(math.ceil(n_samples * n_epochs / (n_batch * n_ratio)))
+        print "  - training %i epochs of batch size %i" % (epochs, n_batch)
+        print "  - sampling latest %i%%, history %i%%" % (n_ratio, 1.0 - n_ratio)
         prune = set()
-        threshold = 0.25
-        for i, (action, reward, index) in enumerate(batch):
-            if (predicted[i][action] - reward) ** 2 <= threshold:
-                prune.add(index)
+        for e in range(epochs):
+            batch = []
+            for i in range(n_batch):
+                if np.random.random() < n_ratio or self.last_training == 0:
+                    j = np.random.randint(self.last_training, len(self.memory))
+                else:
+                    j = np.random.randint(0, self.last_training)
+                state, action, reward = self.memory[j]
+                self.inputs[i] = state
+                batch.append((action, reward, j))
+        
+            original = self.network.predict(self.inputs)
+            for i, (action, reward, _) in enumerate(batch):
+                mask = np.zeros((self.n_actions), dtype=np.float32)
+                mask[action] = 1.0
+                self.targets[i] = original[i] * (1.0 - mask) + reward * mask
+
+            self.network.fit(self.inputs, self.targets, epochs=1)
+            predicted = self.network.predict(self.inputs)
+            error = ((self.targets - predicted) ** 2)
+            error_stats[0] = min(error_stats[0], error.min())
+            error_stats[1] += error.mean()
+            error_stats[2] = max(error_stats[2], error.max())
+
+            target_stats[0] = min(target_stats[0], self.targets.min())
+            target_stats[1] += self.targets.mean()
+            target_stats[2] = max(target_stats[2], self.targets.max())
+
+            pred_stats[0] = min(pred_stats[0], predicted.min())
+            pred_stats[1] += predicted.mean()
+            pred_stats[2] = max(pred_stats[2], predicted.max())
+
+            threshold = 0.25
+            for i, (action, reward, index) in enumerate(batch):
+                if (predicted[i][action] - reward) ** 2 <= threshold:
+                    prune.add(index)
+
+        print "  - target %f / %f / %f" % tuple(target_stats)
+        print "  - pred %f / %f / %f" % tuple(pred_stats)
+        print "  - error %f / %f / %f" % tuple(error_stats)
         print "  - pruned %i with threshold %f" % (len(prune), threshold)
         self.memory = [m for i, m in enumerate(self.memory) if i not in prune]        
+        self.last_training = len(self.memory)
 
     # e-greedy
     def act(self,all_next_sas, reward, terminal):
@@ -205,17 +235,11 @@ class DeepQ(object):
 
     def save(self):
         out_path = "./dq.pickle"
-        pickle.dump(self.network, open(out_path, "wb"))
+        pickle.dump(self.network.mlp, open(out_path, "wb"))
 
-
-    @staticmethod
-    def load():
-        try:
-            with open("./dq.pickle","r") as f:
-                return pickle.load(f)
-        except IOError as e:
-            raise RuntimeError(e)
-
+    def load(self):
+        with open("./dq.pickle","r") as f:
+            self.network.mlp = pickle.load(f)
 
     def __getstate__(self):
         #print self.__dict__.keys()

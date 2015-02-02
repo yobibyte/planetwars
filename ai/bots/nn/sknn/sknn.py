@@ -35,7 +35,7 @@ class sknn():
         self.f = None
         self.verbose = verbose
         cost = Dropout() if dropout else None
-        self.trainer = sgd.SGD(learning_rate=learning_rate, cost=cost, batch_size=96)
+        self.trainer = sgd.SGD(learning_rate=learning_rate, cost=cost, batch_size=100)
 
         self.input_normaliser = input_scaler
         self.output_normaliser = output_scaler
@@ -146,12 +146,8 @@ class sknn():
         X_s,y_s = self.__scale(X,y)
         ds.X = X_s
         ds.y = y_s
-        #print X_s,y_s
-        print "  - training",
         for e in range(epochs):
             self.trainer.train(dataset=ds)
-            sys.stdout.write('.')
-        print ""
         return self
 
     def predict(self, X):
