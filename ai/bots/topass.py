@@ -198,7 +198,7 @@ class TopAss(object):
             a_buckets[indices[f.destination], min(n_buckets-1, d)] += f.ships * (1 if f.owner == pid else -1)
 
         # Full input matrix that combines each feature.
-        a_inputs = numpy.concatenate((a_ships.flatten(), a_buckets.flatten()))
+        a_inputs = numpy.concatenate((a_ships.flatten(), a_growths, a_dists.flatten(), a_buckets.flatten()))
         # a_growths
         # a_dists.flatten(), 
         return a_inputs.astype(numpy.float32) / 1000.0
