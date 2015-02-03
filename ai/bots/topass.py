@@ -22,9 +22,11 @@ ACTIONS = 4
 class TopAss(object):
 
     def __init__(self):
-        self.bot = DeepQ([("RectifiedLinear", 1500), ("RectifiedLinear", 1000), ("RectifiedLinear", 500),
+        self.bot = DeepQ([("RectifiedLinear", 1000),
+                          ("RectifiedLinear", 1000),
+                          ("RectifiedLinear", 1000),
                           ("Linear", )],
-                         dropout=True, learning_rate=0.0002)
+                         dropout=True, learning_rate=0.0001)
 
         try:
             self.bot.load()
