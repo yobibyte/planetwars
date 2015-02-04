@@ -149,7 +149,7 @@ class DeepQ(object):
 
         epochs = int(math.ceil(n_samples * n_epochs / (n_batch * n_ratio)))
         print "  - training %i epochs of batch size %i" % (epochs, n_batch)
-        print "  - sampling latest %i%%, history %i%%" % (n_ratio, 1.0 - n_ratio)
+        print "  - sampling latest %i%%, history %i%%" % (n_ratio * 100.0, 100.0 - n_ratio * 100.0)
         prune = set()
         for e in range(epochs):
             batch = []

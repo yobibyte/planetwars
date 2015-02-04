@@ -39,80 +39,31 @@ class TopAss(object):
         self.winloss = 0
         self.total_reward = 0.0
         self.epsilon_enemy = 0.05
-        self.epsilon_friend = 0.5
+        self.epsilon_enemy = 0.5
 
     def __call__(self, turn, pid, planets, fleets):
-        if pid == 1:
-            # First player plays randomly, from 85% to 5%.
-            self.bot.epsilon = self.epsilon_friend
-        else:
-            # Second player plays greedily, from 5% to 85%.
-            self.bot.epsilon = 1.0
+        self.bot.epsilon = self.epsilon_enemy
 
         # Build the input matrix for data to feed into the DNN.
         a_inputs = self.createInputVector(pid, planets, fleets)
-
-        # Global data used to create/filter possible actions.
-        my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)        
-        other_planets = their_planets + neutral_planets
-
-        action_valid = {
-            0: bool(neutral_planets),   # WEAKEST NEUTRAL
-            1: bool(their_planets),     # WEAKEST ENEMY
-            2: bool(neutral_planets),   # CLOSEST NEUTRAL
-            3: bool(their_planets)      # CLOSEST ENEMY
-        }
-
-        # Matrix used as a multiplier (filter) for inactive actions.
+        orders, a_filter = self.createOutputVectors(pid, planets, fleets)
         n_actions = len(planets) * ACTIONS
-        qf = numpy.zeros((n_actions,))
-        for order_id in range(n_actions):
-            src_id, act_id = order_id / ACTIONS, order_id % ACTIONS
-            if not action_valid[act_id]:
-                continue
-            if planets[src_id].owner != pid:
-                continue
-            qf[order_id] = 1.0
 
         # Reward calculated from the action in previous timestep.
         score = sum([p.growth for p in planets if p.id == pid])
         reward = (score - self.last_score.get(pid, 0)) / 20.0
         if reward < 0: reward /= 4.0
         self.last_score[pid] = score
+
         order_id = self.bot.act_qs(a_inputs, reward,
-                                   terminal=False, n_actions=n_actions, q_filter=qf, episode=pid)
+                                   terminal=False, n_actions=n_actions, q_filter=a_filter, episode=pid)
 
-        if order_id is None:
+        if order_id is None or a_filter[order_id] <= 0.0:
             return []
-
-        src_id, act_id = order_id / ACTIONS, order_id % ACTIONS
-        src = planets[src_id]
-        order_f = qf[order_id]
-
-        if order_f <= 0.0:
-            return []
-
-        assert src.owner == pid, "The order (%i -> %i) is invalid == %f." % (src_id, dst_id, order_f)
-        assert action_valid[act_id], "This action type is currently invalid."
-
-        if act_id == 0 and neutral_planets:
-            # print "WEAKEST NEUTRAL", src_id
-            dst = min(neutral_planets, key=lambda x: x.ships)
-            return [Order(src, dst, src.ships * 0.5)]
-        if act_id == 1 and their_planets:
-            # print "WEAKEST ENEMY", src_id
-            dst = min(their_planets, key=lambda x: x.ships)
-            return [Order(src, dst, src.ships * 0.5)]
-        if act_id == 2 and neutral_planets:
-            # print "CLOSEST NEUTRAL", src_id
-            dst = min(neutral_planets, key=lambda x: turn_dist(src, x))
-            return [Order(src, dst, src.ships * 0.5)]
-        if act_id == 3 and their_planets:
-            # print "CLOSEST ENEMY", src_id
-            dst = min(their_planets, key=lambda x: turn_dist(src, x))
-            return [Order(src, dst, src.ships * 0.5)]
-
-        return []
+        
+        o = orders[order_id]
+        assert len(o), "The order specified is invalid."
+        return o
 
     def done(self, turns, pid, planets, fleets, won):
         a_inputs = self.createInputVector(pid, planets, fleets)
@@ -144,9 +95,9 @@ class TopAss(object):
             # if self.winloss > -BATCH / 3:
             #    if self.epsilon_enemy < 0.85:
             #        self.epsilon_enemy += 0.01
-            if self.epsilon_friend > 0.1:
-                self.epsilon_friend -= 0.02
-            print "  - skills: random %i%% (self) vs. greedy %i%% (other)" % (self.epsilon_friend * 100.0, self.epsilon_enemy * 100.0)
+            if self.epsilon_enemy > 0.1:
+                self.epsilon_enemy -= 0.01
+            print "  - skills: random %i%% (self) vs. greedy %i%% (other)" % (self.epsilon_enemy * 100.0, self.epsilon_enemy * 100.0)
             self.winloss = 0
             self.total_reward = 0.0
             del self.last_score[pid]
@@ -163,6 +114,55 @@ class TopAss(object):
                     sys.stdout.write('+')
                 elif score < 0.0:
                     sys.stdout.write('=')
+
+    def createOutputVectors(self, pid, planets, fleets):        
+        # Global data used to create/filter possible actions.
+        my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)        
+        other_planets = their_planets + neutral_planets
+
+        action_valid = {
+            0: bool(neutral_planets),   # WEAKEST NEUTRAL
+            1: bool(their_planets),     # WEAKEST ENEMY
+            # 2: bool(my_planets),        # WEAKEST FRIENDLY
+            2: bool(neutral_planets),   # CLOSEST NEUTRAL
+            3: bool(their_planets),     # CLOSEST ENEMY
+            # 5: bool(my_planets),        # CLOSEST FRIENDLY
+        }
+
+        # Matrix used as a multiplier (filter) for inactive actions.
+        n_actions = len(planets) * ACTIONS
+        orders = []
+
+        a_filter = numpy.zeros((n_actions,))
+        for order_id in range(n_actions):
+            src_id, act_id = order_id / ACTIONS, order_id % ACTIONS
+            src = planets[src_id]            
+            if not action_valid[act_id] or src.owner != pid:
+                orders.append([])
+                continue
+
+            if act_id == 0: # WEAKEST NEUTRAL
+                dst = min(neutral_planets, key=lambda x: x.ships * 100 + turn_dist(src, x))
+            if act_id == 1: # WEAKEST ENEMY
+                dst = min(their_planets, key=lambda x: x.ships * 100 + turn_dist(src, x))
+            # if act_id == 2: # WEAKEST FRIENDLY
+            #     dst = min(set(my_planets)-set(src), key=lambda x: x.ships * 100 + turn_dist(src, x))                
+            if act_id == 2: # CLOSEST NEUTRAL
+                dst = min(neutral_planets, key=lambda x: turn_dist(src, x) * 1000 + x.ships)
+            if act_id == 3: # CLOSEST ENEMY
+                dst = min(their_planets, key=lambda x: turn_dist(src, x) * 1000 + x.ships)
+            # if act_id == 5: # CLOSEST FRIENDLY
+            #     dst = min(set(my_planets)-set(src), key=lambda x: turn_dist(src, x) * 1000 + x.ships)
+
+            if dst.id == src.id:
+                orders.append([])
+                continue
+
+            orders.append([Order(src, dst, src.ships * 0.5)])
+            a_filter[order_id] = 1.0
+
+        return orders, a_filter
+
 
     def createInputVector(self, pid, planets, fleets):
         indices = range(len(planets))
@@ -198,7 +198,6 @@ class TopAss(object):
             a_buckets[indices[f.destination], min(n_buckets-1, d)] += f.ships * (1 if f.owner == pid else -1)
 
         # Full input matrix that combines each feature.
-        a_inputs = numpy.concatenate((a_ships.flatten(), a_growths, a_dists.flatten(), a_buckets.flatten()))
-        # a_growths
-        # a_dists.flatten(), 
+        # a_growths, a_dists.flatten(), 
+        a_inputs = numpy.concatenate((a_ships.flatten(), a_buckets.flatten()))
         return a_inputs.astype(numpy.float32) / 1000.0
