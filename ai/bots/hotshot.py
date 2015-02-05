@@ -71,7 +71,7 @@ class Hotshot( object ):
         my_planets, their_planets, neutral_planets = aggro_partition( pid, planets )
         orders = [] 
 
-        if random.random() < 0.15 and False:
+        if random.random() < 0.0:
             other_planets = their_planets+neutral_planets
             if not my_planets or not other_planets:
                 return []

@@ -183,7 +183,7 @@ class DeepQ(object):
             pred_stats[1] += predicted.mean()
             pred_stats[2] = max(pred_stats[2], predicted.max())
 
-            threshold = 0.25
+            threshold = 0.1
             for i, (action, reward, index) in enumerate(batch):
                 if (predicted[i][action] - reward) ** 2 <= threshold:
                     prune.add(index)

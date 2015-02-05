@@ -107,6 +107,10 @@ class sknn():
                     num_pieces=layer[2],
                     layer_name=layer_name,
                     irange=lim)
+            elif activate_type == "Convolution":
+                hidden_layer = conv2d.Conv2D(
+                    
+                    )
             else:
                 raise NotImplementedError(
                     "Layer of type %s are not implemented yet" %

@@ -15,16 +15,18 @@ from .stochastic import Stochastic
 from .sample import strong_to_weak, strong_to_close
 
 
-ACTIONS = 4
+ACTIONS = 5
+SCALE = 1.0
 
 
 @planetwars_class
 class TopAss(object):
 
     def __init__(self):
-        self.bot = DeepQ([("RectifiedLinear", 1000),
-                          ("RectifiedLinear", 1000),
-                          ("RectifiedLinear", 1000),
+        self.bot = DeepQ([("RectifiedLinear", 2500),
+                          ("RectifiedLinear", 2500),
+                          ("RectifiedLinear", 2500),
+                          ("RectifiedLinear", 2500),
                           ("Linear", )],
                          dropout=True, learning_rate=0.0001)
 
@@ -38,11 +40,11 @@ class TopAss(object):
         self.games = 0
         self.winloss = 0
         self.total_reward = 0.0
-        self.epsilon_enemy = 0.05
+        self.epsilon_friend = 0.5
         self.epsilon_enemy = 0.5
 
     def __call__(self, turn, pid, planets, fleets):
-        self.bot.epsilon = self.epsilon_enemy
+        self.bot.epsilon = self.epsilon_friend
 
         # Build the input matrix for data to feed into the DNN.
         a_inputs = self.createInputVector(pid, planets, fleets)
@@ -55,7 +57,7 @@ class TopAss(object):
         if reward < 0: reward /= 4.0
         self.last_score[pid] = score
 
-        order_id = self.bot.act_qs(a_inputs, reward,
+        order_id = self.bot.act_qs(a_inputs, reward * SCALE,
                                    terminal=False, n_actions=n_actions, q_filter=a_filter, episode=pid)
 
         if order_id is None or a_filter[order_id] <= 0.0:
@@ -73,7 +75,7 @@ class TopAss(object):
         else:
             score = +1.0 if won else -0.5
 
-        self.bot.act_qs(a_inputs, score, terminal=True, n_actions=n_actions,
+        self.bot.act_qs(a_inputs, score * SCALE, terminal=True, n_actions=n_actions,
                         q_filter=0.0, episode=pid)
 
         assert pid == 1
@@ -89,15 +91,15 @@ class TopAss(object):
             print "\nIteration %i with ratio %+i as score %f." % (self.games/BATCH, self.winloss, self.total_reward / BATCH)
             print "  - memory %i, latest %i, batch %i" % (len(self.bot.memory), len(self.bot.memory)-self.bot.last_training, n_batch)
             
-            self.bot.train_qs(n_epochs=2, n_ratio=0.5, n_batch=n_batch)
+            self.bot.train_qs(n_epochs=2, n_ratio=0.25, n_batch=n_batch)
             self.bot.memory = self.bot.memory[len(self.bot.memory)/100:]
 
             # if self.winloss > -BATCH / 3:
             #    if self.epsilon_enemy < 0.85:
             #        self.epsilon_enemy += 0.01
-            if self.epsilon_enemy > 0.1:
-                self.epsilon_enemy -= 0.01
-            print "  - skills: random %i%% (self) vs. greedy %i%% (other)" % (self.epsilon_enemy * 100.0, self.epsilon_enemy * 100.0)
+            if self.epsilon_friend > 0.1:
+                self.epsilon_friend -= 0.01
+            print "  - skills: random %i%% (self) vs. greedy %i%% (other)" % (self.epsilon_friend * 100.0, self.epsilon_enemy * 100.0)
             self.winloss = 0
             self.total_reward = 0.0
             del self.last_score[pid]
@@ -120,14 +122,13 @@ class TopAss(object):
         my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)        
         other_planets = their_planets + neutral_planets
 
-        action_valid = {
-            0: bool(neutral_planets),   # WEAKEST NEUTRAL
-            1: bool(their_planets),     # WEAKEST ENEMY
-            # 2: bool(my_planets),        # WEAKEST FRIENDLY
-            2: bool(neutral_planets),   # CLOSEST NEUTRAL
-            3: bool(their_planets),     # CLOSEST ENEMY
-            # 5: bool(my_planets),        # CLOSEST FRIENDLY
-        }
+        action_valid = [
+            bool(neutral_planets),   # WEAKEST NEUTRAL
+            bool(neutral_planets),   # CLOSEST NEUTRAL
+            bool(their_planets),     # WEAKEST ENEMY
+            bool(their_planets),     # CLOSEST ENEMY
+            len(my_planets) >= 2,    # BEST FRIENDLY
+        ]
 
         # Matrix used as a multiplier (filter) for inactive actions.
         n_actions = len(planets) * ACTIONS
@@ -143,16 +144,14 @@ class TopAss(object):
 
             if act_id == 0: # WEAKEST NEUTRAL
                 dst = min(neutral_planets, key=lambda x: x.ships * 100 + turn_dist(src, x))
-            if act_id == 1: # WEAKEST ENEMY
-                dst = min(their_planets, key=lambda x: x.ships * 100 + turn_dist(src, x))
-            # if act_id == 2: # WEAKEST FRIENDLY
-            #     dst = min(set(my_planets)-set(src), key=lambda x: x.ships * 100 + turn_dist(src, x))                
-            if act_id == 2: # CLOSEST NEUTRAL
+            if act_id == 1: # CLOSEST NEUTRAL
                 dst = min(neutral_planets, key=lambda x: turn_dist(src, x) * 1000 + x.ships)
+            if act_id == 2: # WEAKEST ENEMY
+                dst = min(their_planets, key=lambda x: x.ships * 100 + turn_dist(src, x))
             if act_id == 3: # CLOSEST ENEMY
                 dst = min(their_planets, key=lambda x: turn_dist(src, x) * 1000 + x.ships)
-            # if act_id == 5: # CLOSEST FRIENDLY
-            #     dst = min(set(my_planets)-set(src), key=lambda x: turn_dist(src, x) * 1000 + x.ships)
+            if act_id == 4: # BEST FRIENDLY
+                dst = min(set(my_planets)-set(src), key=lambda x: x.ships + turn_dist(src, x))                
 
             if dst.id == src.id:
                 orders.append([])
@@ -198,6 +197,5 @@ class TopAss(object):
             a_buckets[indices[f.destination], min(n_buckets-1, d)] += f.ships * (1 if f.owner == pid else -1)
 
         # Full input matrix that combines each feature.
-        # a_growths, a_dists.flatten(), 
-        a_inputs = numpy.concatenate((a_ships.flatten(), a_buckets.flatten()))
+        a_inputs = numpy.concatenate((a_ships.flatten(), a_growths, a_dists.flatten(), a_buckets.flatten()))
         return a_inputs.astype(numpy.float32) / 1000.0
