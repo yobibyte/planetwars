@@ -53,6 +53,10 @@ class Hotshot( object ):
                         self.hotshot_params[i] = 1
                 i += 1
     '''
+
+    def done(self, *args):
+        pass
+
     def __call__( self, turn, pid, planets, fleets ):
         
         i = 1

@@ -89,7 +89,7 @@ class DeepQ(object):
         if self.swap_counter % self.swap_iterations == 0:
             pass
 
-    def act_qs(self, state, reward, terminal, n_actions, q_filter, episode=0):
+    def act_qs(self, state, reward, terminal, n_actions, q_filter, n_best=1, episode=0):
         # Make sure the deep neural network has been correctly initialized given
         # the exact input and output dimensions.
         self.n_actions = n_actions
@@ -110,8 +110,10 @@ class DeepQ(object):
             else:
                 # Compute the next Q-values for all actions in this state.  These are 
                 # filtered based on which are available, specified by game logic.
-                qs = self.__Qs(np.array([state]))[0] * q_filter
-                action = qs.argmax()
+                qs = self.__Qs(np.array([state]))[0] - 100.0 * (1.0 - q_filter)
+                # Determine the argmax for multiple possible options.
+                indices = np.argpartition(qs, -n_best)[-n_best:]
+                action = np.random.choice(indices)
         else:
             action = None
 
@@ -147,7 +149,11 @@ class DeepQ(object):
         target_stats = [+float("inf"), 0.0, -float("inf")]
         pred_stats = [+float("inf"), 0.0, -float("inf")]
 
-        epochs = int(math.ceil(n_samples * n_epochs / (n_batch * n_ratio)))
+        if n_ratio > 0.0:
+            epochs = int(math.ceil(n_samples * n_epochs / (n_batch * n_ratio)))
+        else:
+            epochs = int(math.ceil(len(self.memory) * n_epochs / n_batch))
+
         print "  - training %i epochs of batch size %i" % (epochs, n_batch)
         print "  - sampling latest %i%%, history %i%%" % (n_ratio * 100.0, 100.0 - n_ratio * 100.0)
         prune = set()

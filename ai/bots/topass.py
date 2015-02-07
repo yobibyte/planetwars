@@ -23,12 +23,12 @@ SCALE = 1.0
 class TopAss(object):
 
     def __init__(self):
-        self.bot = DeepQ([("RectifiedLinear", 2500),
+        self.bot = DeepQ([("RectifiedLinear", 3500),
+                          ("RectifiedLinear", 3000),
                           ("RectifiedLinear", 2500),
-                          ("RectifiedLinear", 2500),
-                          ("RectifiedLinear", 2500),
+                          ("RectifiedLinear", 2000),
                           ("Linear", )],
-                         dropout=True, learning_rate=0.0001)
+                         dropout=True, learning_rate=0.000025) # 0.000025
 
         try:
             self.bot.load()
@@ -40,11 +40,15 @@ class TopAss(object):
         self.games = 0
         self.winloss = 0
         self.total_reward = 0.0
-        self.epsilon_friend = 0.5
-        self.epsilon_enemy = 0.5
+        self.epsilon = 0.50001
 
     def __call__(self, turn, pid, planets, fleets):
-        self.bot.epsilon = self.epsilon_friend
+        if pid == 1:
+            self.bot.epsilon = 0.0
+            n_best = int(20.0 * self.epsilon)
+        else:
+            self.bot.epsilon = self.epsilon
+            n_best = 1
 
         # Build the input matrix for data to feed into the DNN.
         a_inputs = self.createInputVector(pid, planets, fleets)
@@ -57,8 +61,8 @@ class TopAss(object):
         if reward < 0: reward /= 4.0
         self.last_score[pid] = score
 
-        order_id = self.bot.act_qs(a_inputs, reward * SCALE,
-                                   terminal=False, n_actions=n_actions, q_filter=a_filter, episode=pid)
+        order_id = self.bot.act_qs(a_inputs, reward * SCALE, episode=pid, terminal=False, q_filter=a_filter, 
+                                   n_actions=n_actions, n_best=n_best)
 
         if order_id is None or a_filter[order_id] <= 0.0:
             return []
@@ -78,7 +82,8 @@ class TopAss(object):
         self.bot.act_qs(a_inputs, score * SCALE, terminal=True, n_actions=n_actions,
                         q_filter=0.0, episode=pid)
 
-        assert pid == 1
+        if pid == 2:
+            return
 
         self.games += 1
         self.total_reward += score
@@ -92,14 +97,18 @@ class TopAss(object):
             print "  - memory %i, latest %i, batch %i" % (len(self.bot.memory), len(self.bot.memory)-self.bot.last_training, n_batch)
             
             self.bot.train_qs(n_epochs=2, n_ratio=0.25, n_batch=n_batch)
-            self.bot.memory = self.bot.memory[len(self.bot.memory)/100:]
+            if len(self.bot.memory) > 1000000:
+                self.bot.train_qs(n_epochs=15, n_ratio=0.0, n_batch=n_batch)
+            elif len(self.bot.memory) > 500000:
+                self.bot.train_qs(n_epochs=5, n_ratio=0.0, n_batch=n_batch)
+            elif len(self.bot.memory) > 250000:
+                self.bot.train_qs(n_epochs=3, n_ratio=0.0, n_batch=n_batch)
+            elif len(self.bot.memory) > 100000:
+                self.bot.train_qs(n_epochs=1, n_ratio=0.0, n_batch=n_batch)
 
-            # if self.winloss > -BATCH / 3:
-            #    if self.epsilon_enemy < 0.85:
-            #        self.epsilon_enemy += 0.01
-            if self.epsilon_friend > 0.1:
-                self.epsilon_friend -= 0.01
-            print "  - skills: random %i%% (self) vs. greedy %i%% (other)" % (self.epsilon_friend * 100.0, self.epsilon_enemy * 100.0)
+            if self.epsilon > 0.21:
+                self.epsilon -= 0.025
+            print "  - skills: random %i%% (self)" % (self.epsilon * 100.0)
             self.winloss = 0
             self.total_reward = 0.0
             del self.last_score[pid]
@@ -166,10 +175,10 @@ class TopAss(object):
     def createInputVector(self, pid, planets, fleets):
         indices = range(len(planets))
         # random.shuffle(indices)
-        assert pid != 2
-        if pid == 2:
-            for i in range(1, len(planets), 2):
-                indices[i], indices[i+1] = indices[i+1], indices[i]
+
+        # if pid == 2:
+        #    for i in range(1, len(planets), 2):
+        #        indices[i], indices[i+1] = indices[i+1], indices[i]
 
         # 1) Three layers of ship counters for each faction.
         a_ships = numpy.zeros((len(planets), 3))
