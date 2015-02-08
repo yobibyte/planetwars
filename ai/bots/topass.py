@@ -15,8 +15,11 @@ from .stochastic import Stochastic
 from .sample import strong_to_weak, strong_to_close
 
 
-ACTIONS = 5
+ACTIONS = 9
 SCALE = 1.0
+
+def split(index, stride):
+    return index / stride, order_id % stride
 
 
 @planetwars_class
@@ -58,7 +61,6 @@ class TopAss(object):
         # Reward calculated from the action in previous timestep.
         score = sum([p.growth for p in planets if p.id == pid])
         reward = (score - self.last_score.get(pid, 0)) / 20.0
-        if reward < 0: reward /= 4.0
         self.last_score[pid] = score
 
         order_id = self.bot.act_qs(a_inputs, reward * SCALE, episode=pid, terminal=False, q_filter=a_filter, 
@@ -75,16 +77,17 @@ class TopAss(object):
         a_inputs = self.createInputVector(pid, planets, fleets)
         n_actions = len(planets) * ACTIONS
         if turns == 201:
-            score = +0.5 if won else -0.25
+            score = +0.5 if won else -0.5
         else:
-            score = +1.0 if won else -0.5
+            score = +1.0 if won else -1.0
 
         self.bot.act_qs(a_inputs, score * SCALE, terminal=True, n_actions=n_actions,
                         q_filter=0.0, episode=pid)
 
         if pid == 2:
             return
-
+        
+        n_best = int(20.0 * self.epsilon)
         self.games += 1
         self.total_reward += score
         self.winloss += int(won) * 2 - 1
@@ -106,9 +109,9 @@ class TopAss(object):
             elif len(self.bot.memory) > 100000:
                 self.bot.train_qs(n_epochs=1, n_ratio=0.0, n_batch=n_batch)
 
-            if self.epsilon > 0.21:
+            if self.epsilon > 0.11:
                 self.epsilon -= 0.025
-            print "  - skills: random %i%% (self)" % (self.epsilon * 100.0)
+            print "  - skills: best of %i (self) vs. random %i%% (other)" % (n_best, self.epsilon * 100.0)
             self.winloss = 0
             self.total_reward = 0.0
             del self.last_score[pid]
@@ -145,7 +148,7 @@ class TopAss(object):
 
         a_filter = numpy.zeros((n_actions,))
         for order_id in range(n_actions):
-            src_id, act_id = order_id / ACTIONS, order_id % ACTIONS
+            src_id, act_id = split(order_id, ACTIONS)
             src = planets[src_id]            
             if not action_valid[act_id] or src.owner != pid:
                 orders.append([])
