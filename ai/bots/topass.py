@@ -10,16 +10,21 @@ from .. import planetwars_class
 from planetwars.datatypes import Order
 from planetwars.utils import *
 
+# TODO: Experiment with incrementally decreasing learning rate, or watch oscillations in performance.
+# TODO: Evaluate the performance of the NN on other bots outside of the training, separately?
+# TODO: Add StrongToClose and StrongToWeak behavior as an epsilon percentage.
+# TODO: Scale the outputs to 9 (strong|weak|best union friendly|enemy|neutral).
+
 from ..bots.nn.deepq.deepq import DeepQ
 from .stochastic import Stochastic
 from .sample import strong_to_weak, strong_to_close
 
 
-ACTIONS = 9
+ACTIONS = 5
 SCALE = 1.0
 
 def split(index, stride):
-    return index / stride, order_id % stride
+    return index / stride, index % stride
 
 
 @planetwars_class
