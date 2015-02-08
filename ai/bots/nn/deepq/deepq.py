@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
+
 __author__ = 'ssamot, schaul'
 
+import sys
 import math
 import collections
 import cPickle as pickle
@@ -154,8 +157,9 @@ class DeepQ(object):
         else:
             epochs = int(math.ceil(len(self.memory) * n_epochs / n_batch))
 
-        print "  - training %i epochs of batch size %i" % (epochs, n_batch)
+        print "  - training %i epochs of batch size %i" % (epochs, n_batch)        
         print "  - sampling latest %i%%, history %i%%" % (n_ratio * 100.0, 100.0 - n_ratio * 100.0)
+        print "  - ",
         prune = set()
         for e in range(epochs):
             batch = []
@@ -176,7 +180,12 @@ class DeepQ(object):
 
             self.network.fit(self.inputs, self.targets, epochs=1)
             predicted = self.network.predict(self.inputs)
-            error = ((self.targets - predicted) ** 2)
+
+            error = []
+            for i, (action, reward, _) in enumerate(batch):
+                e = (self.targets[i][action] - reward) ** 2
+                error.append(e)
+            error = np.array(error)
             error_stats[0] = min(error_stats[0], error.min())
             error_stats[1] += error.mean()
             error_stats[2] = max(error_stats[2], error.max())
@@ -194,7 +203,10 @@ class DeepQ(object):
                 if (predicted[i][action] - reward) ** 2 <= threshold:
                     prune.add(index)
 
-        print "  - target %f / %f / %f" % tuple(target_stats)
+            sys.stdout.write('■'); sys.stdout.flush()
+
+        print "\r" + " " * (epochs + 4)
+        print "\r  - target %f / %f / %f" % tuple(target_stats)
         print "  - pred %f / %f / %f" % tuple(pred_stats)
         print "  - error %f / %f / %f" % tuple(error_stats)
         print "  - pruned %i with threshold %f" % (len(prune), threshold)

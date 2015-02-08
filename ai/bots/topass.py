@@ -14,6 +14,8 @@ from planetwars.utils import *
 # TODO: Evaluate the performance of the NN on other bots outside of the training, separately?
 # TODO: Add StrongToClose and StrongToWeak behavior as an epsilon percentage.
 # TODO: Scale the outputs to 9 (strong|weak|best union friendly|enemy|neutral).
+# TODO: Evaluate against known bots at regular intervals, to measure performance.
+# TODO: Shuffle the input/output vectors to force abstracting across planet order.
 
 from ..bots.nn.deepq.deepq import DeepQ
 from .stochastic import Stochastic
@@ -31,10 +33,10 @@ def split(index, stride):
 class TopAss(object):
 
     def __init__(self):
-        self.bot = DeepQ([("RectifiedLinear", 3500),
-                          ("RectifiedLinear", 3000),
-                          ("RectifiedLinear", 2500),
+        self.bot = DeepQ([("RectifiedLinear", 2500),
                           ("RectifiedLinear", 2000),
+                          ("RectifiedLinear", 1500),
+                          # ("RectifiedLinear", 2000),
                           ("Linear", )],
                          dropout=True, learning_rate=0.000025) # 0.000025
 
@@ -48,15 +50,21 @@ class TopAss(object):
         self.games = 0
         self.winloss = 0
         self.total_reward = 0.0
-        self.epsilon = 0.50001
+        self.epsilon = 0.25001
+        self.greedy = None
+        self.iterations = 0
 
     def __call__(self, turn, pid, planets, fleets):
         if pid == 1:
-            self.bot.epsilon = 0.0
+            self.bot.epsilon = self.epsilon
             n_best = int(20.0 * self.epsilon)
         else:
-            self.bot.epsilon = self.epsilon
             n_best = 1
+            # if random.random() < self.epsilon * 2.0:
+            #     self.bot.epsilon = 1.0
+            # else:
+            self.greedy = strong_to_close if (self.games % 2 == 0) else strong_to_weak
+            self.bot.epsilon = 0.0
 
         # Build the input matrix for data to feed into the DNN.
         a_inputs = self.createInputVector(pid, planets, fleets)
@@ -100,8 +108,9 @@ class TopAss(object):
         # print '#', int(self.games), "(%i)" % len(self.bot.memory), self.total_reward/self.games*2
         BATCH = 100
         if self.games % BATCH == 0:
+            self.iterations += 1
             n_batch = 5000
-            print "\nIteration %i with ratio %+i as score %f." % (self.games/BATCH, self.winloss, self.total_reward / BATCH)
+            print "\nIteration %i with ratio %+i as score %f." % (self.iterations, self.winloss, self.total_reward / BATCH)
             print "  - memory %i, latest %i, batch %i" % (len(self.bot.memory), len(self.bot.memory)-self.bot.last_training, n_batch)
             
             self.bot.train_qs(n_epochs=2, n_ratio=0.25, n_batch=n_batch)
@@ -116,7 +125,7 @@ class TopAss(object):
 
             if self.epsilon > 0.11:
                 self.epsilon -= 0.025
-            print "  - skills: best of %i (self) vs. random %i%% (other)" % (n_best, self.epsilon * 100.0)
+            print "  - skills: top %i + random %3.1f%% (self) vs. greedy + random %3.1f%% (other)" % (n_best, self.epsilon * 100.0, self.epsilon * 200.0)
             self.winloss = 0
             self.total_reward = 0.0
             del self.last_score[pid]
@@ -138,6 +147,16 @@ class TopAss(object):
         # Global data used to create/filter possible actions.
         my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)        
         other_planets = their_planets + neutral_planets
+
+        if self.greedy:
+            order = self.greedy(0, pid, planets, fleets)
+            if len(order) > 0:
+                order = order[0]
+            else:
+                order = None
+            self.greedy = None
+        else:
+            order = None
 
         action_valid = [
             bool(neutral_planets),   # WEAKEST NEUTRAL
@@ -174,8 +193,15 @@ class TopAss(object):
                 orders.append([])
                 continue
 
-            orders.append([Order(src, dst, src.ships * 0.5)])
-            a_filter[order_id] = 1.0
+            if order is None:
+                orders.append([Order(src, dst, src.ships * 0.5)])
+                a_filter[order_id] = 1.0
+            else:
+                if order.source.id == src_id and order.destination.id == dst.id:
+                    orders.append([Order(src, dst, src.ships * 0.5)])
+                    a_filter[order_id] = 1.0
+                else:
+                    orders.append([])
 
         return orders, a_filter
 
