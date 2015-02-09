@@ -183,19 +183,19 @@ class DeepQ(object):
 
             error = []
             for i, (action, reward, _) in enumerate(batch):
-                e = (self.targets[i][action] - reward) ** 2
+                e = (predicted[i][action] - reward) ** 2.0
                 error.append(e)
             error = np.array(error)
             error_stats[0] = min(error_stats[0], error.min())
-            error_stats[1] += error.mean()
+            error_stats[1] += error.mean() / float(epochs)
             error_stats[2] = max(error_stats[2], error.max())
 
             target_stats[0] = min(target_stats[0], self.targets.min())
-            target_stats[1] += self.targets.mean()
+            target_stats[1] += self.targets.mean() / float(epochs)
             target_stats[2] = max(target_stats[2], self.targets.max())
 
             pred_stats[0] = min(pred_stats[0], predicted.min())
-            pred_stats[1] += predicted.mean()
+            pred_stats[1] += predicted.mean() / float(epochs)
             pred_stats[2] = max(pred_stats[2], predicted.max())
 
             threshold = 0.1
@@ -205,7 +205,7 @@ class DeepQ(object):
 
             sys.stdout.write('■'); sys.stdout.flush()
 
-        print "\r" + " " * (epochs + 4)
+        print "\r" + " " * (epochs + 4),
         print "\r  - target %f / %f / %f" % tuple(target_stats)
         print "  - pred %f / %f / %f" % tuple(pred_stats)
         print "  - error %f / %f / %f" % tuple(error_stats)

@@ -10,7 +10,7 @@ def strong_to_weak(turn, pid, planets, fleets):
     if len(my_planets) == 0 or len(their_planets) == 0:
       return []
     my_strongest = max(my_planets, key=get_ships)
-    their_weakest = min(their_planets, key=get_ships)
+    their_weakest = min(their_planets, key=lambda x: x.ships * 100 + turn_dist(my_strongest, x))
     return [Order(my_strongest, their_weakest, my_strongest.ships * 0.5)]
 
 @planetwars_ai("StrongToClose")
@@ -20,9 +20,7 @@ def strong_to_close(turn, pid, planets, fleets):
     if len(my_planets) == 0 or len(other_planets) == 0:
         return []
     my_strongest = max(my_planets, key=get_ships)
-    def dist_to(other_planet):
-        return turn_dist(my_strongest, other_planet)
-    other_closest = min(other_planets, key=dist_to)
+    other_closest = min(other_planets, key=lambda x: turn_dist(my_strongest, x) * 1000 + x.ships)
     return [Order(my_strongest, other_closest, my_strongest.ships * 0.5)]
 
 @planetwars_ai("AllToWeak")

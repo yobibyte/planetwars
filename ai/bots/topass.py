@@ -33,12 +33,12 @@ def split(index, stride):
 class TopAss(object):
 
     def __init__(self):
-        self.bot = DeepQ([("RectifiedLinear", 2500),
+        self.bot = DeepQ([("RectifiedLinear", 3500),
+                          ("RectifiedLinear", 3000),
+                          ("RectifiedLinear", 2500),
                           ("RectifiedLinear", 2000),
-                          ("RectifiedLinear", 1500),
-                          # ("RectifiedLinear", 2000),
                           ("Linear", )],
-                         dropout=True, learning_rate=0.000025) # 0.000025
+                         dropout=True, learning_rate=0.00001) # 0.000025
 
         try:
             self.bot.load()
@@ -50,26 +50,39 @@ class TopAss(object):
         self.games = 0
         self.winloss = 0
         self.total_reward = 0.0
-        self.epsilon = 0.25001
+        self.epsilon = 0.50001
         self.greedy = None
         self.iterations = 0
 
     def __call__(self, turn, pid, planets, fleets):
         if pid == 1:
-            self.bot.epsilon = self.epsilon
-            n_best = int(20.0 * self.epsilon)
+            if self.games % 2 == 0:
+                self.bot.epsilon = 0.0
+                n_best = int(40.0 * self.epsilon)
+            if self.games % 2 == 1:
+                self.bot.epsilon = self.epsilon
+                n_best = 1
+
         else:
             n_best = 1
-            # if random.random() < self.epsilon * 2.0:
-            #     self.bot.epsilon = 1.0
-            # else:
-            self.greedy = strong_to_close if (self.games % 2 == 0) else strong_to_weak
-            self.bot.epsilon = 0.0
+
+            # Hard-coded opponent bots use greedy policy (1-2*epsilon) of the time.
+            if random.random() > self.epsilon * 2:
+                if self.games % 3 == 0:
+                    self.greedy = strong_to_close
+                if self.games % 3 == 1:
+                    self.greedy = strong_to_weak
+                self.bot.epsilon = 0.0
+            else:
+                self.bot.epsilon = 1.0
+
+            # One of the three opponents is a fully randomized bot.
+            if self.games % 3 == 2:
+                self.bot.epsilon = 1.0
 
         # Build the input matrix for data to feed into the DNN.
         a_inputs = self.createInputVector(pid, planets, fleets)
         orders, a_filter = self.createOutputVectors(pid, planets, fleets)
-        n_actions = len(planets) * ACTIONS
 
         # Reward calculated from the action in previous timestep.
         score = sum([p.growth for p in planets if p.id == pid])
@@ -77,18 +90,18 @@ class TopAss(object):
         self.last_score[pid] = score
 
         order_id = self.bot.act_qs(a_inputs, reward * SCALE, episode=pid, terminal=False, q_filter=a_filter, 
-                                   n_actions=n_actions, n_best=n_best)
+                                   n_actions=len(orders), n_best=n_best)
 
         if order_id is None or a_filter[order_id] <= 0.0:
             return []
         
         o = orders[order_id]
-        assert len(o), "The order specified is invalid."
+        assert o is not None, "The order specified is invalid."
         return o
 
     def done(self, turns, pid, planets, fleets, won):
         a_inputs = self.createInputVector(pid, planets, fleets)
-        n_actions = len(planets) * ACTIONS
+        n_actions = len(planets) * ACTIONS + 1
         if turns == 201:
             score = +0.5 if won else -0.5
         else:
@@ -125,7 +138,7 @@ class TopAss(object):
 
             if self.epsilon > 0.11:
                 self.epsilon -= 0.025
-            print "  - skills: top %i + random %3.1f%% (self) vs. greedy + random %3.1f%% (other)" % (n_best, self.epsilon * 100.0, self.epsilon * 200.0)
+            print "  - skills: top %i moves, or random %3.1f%%" % (n_best, self.epsilon * 100.0)
             self.winloss = 0
             self.total_reward = 0.0
             del self.last_score[pid]
@@ -134,29 +147,26 @@ class TopAss(object):
         else:
             if turns == 201:
                 if score > 0.0:
-                    sys.stdout.write('·')
+                    sys.stdout.write('o')
                 elif score < 0.0:
-                    sys.stdout.write('-')
+                    sys.stdout.write('.')
             else:
                 if score > 0.0:
-                    sys.stdout.write('+')
+                    sys.stdout.write('O')
                 elif score < 0.0:
-                    sys.stdout.write('=')
+                    sys.stdout.write('_')
 
     def createOutputVectors(self, pid, planets, fleets):        
         # Global data used to create/filter possible actions.
         my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)        
         other_planets = their_planets + neutral_planets
 
+        order = None
         if self.greedy:
-            order = self.greedy(0, pid, planets, fleets)
-            if len(order) > 0:
-                order = order[0]
-            else:
-                order = None
+            g = self.greedy(0, pid, planets, fleets)
+            if len(g) > 0:
+                order = g[0]
             self.greedy = None
-        else:
-            order = None
 
         action_valid = [
             bool(neutral_planets),   # WEAKEST NEUTRAL
@@ -167,13 +177,13 @@ class TopAss(object):
         ]
 
         # Matrix used as a multiplier (filter) for inactive actions.
-        n_actions = len(planets) * ACTIONS
+        n_actions = len(planets) * ACTIONS + 1
         orders = []
 
         a_filter = numpy.zeros((n_actions,))
-        for order_id in range(n_actions):
+        for order_id in range(n_actions-1):
             src_id, act_id = split(order_id, ACTIONS)
-            src = planets[src_id]            
+            src = planets[src_id]
             if not action_valid[act_id] or src.owner != pid:
                 orders.append([])
                 continue
@@ -190,7 +200,7 @@ class TopAss(object):
                 dst = min(set(my_planets)-set(src), key=lambda x: x.ships + turn_dist(src, x))                
 
             if dst.id == src.id:
-                orders.append([])
+                orders.append(None)
                 continue
 
             if order is None:
@@ -200,9 +210,15 @@ class TopAss(object):
                 if order.source.id == src_id and order.destination.id == dst.id:
                     orders.append([Order(src, dst, src.ships * 0.5)])
                     a_filter[order_id] = 1.0
+                    order = None
                 else:
-                    orders.append([])
+                    orders.append(None)
 
+        # NO-OP.
+        a_filter[-1] = 1.0
+        orders.append([])
+
+        assert order is None, "Neural network did not support the greedy order suggested."
         return orders, a_filter
 
 
