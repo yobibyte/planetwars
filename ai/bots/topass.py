@@ -10,19 +10,20 @@ from .. import planetwars_class
 from planetwars.datatypes import Order
 from planetwars.utils import *
 
-# TODO: Experiment with incrementally decreasing learning rate, or watch oscillations in performance.
 # TODO: Evaluate the performance of the NN on other bots outside of the training, separately?
-# TODO: Add StrongToClose and StrongToWeak behavior as an epsilon percentage.
 # TODO: Scale the outputs to 9 (strong|weak|best union friendly|enemy|neutral).
-# TODO: Evaluate against known bots at regular intervals, to measure performance.
 # TODO: Shuffle the input/output vectors to force abstracting across planet order.
+
+# DONE: Add StrongToClose and StrongToWeak behavior as an epsilon percentage.
+# DONE: Experiment with incrementally decreasing learning rate, or watch oscillations in performance.
+# DONE: Evaluate against known bots at regular intervals, to measure performance.
 
 from ..bots.nn.deepq.deepq import DeepQ
 from .stochastic import Stochastic
 from .sample import strong_to_weak, strong_to_close
 
 
-ACTIONS = 5
+ACTIONS = 9
 SCALE = 1.0
 
 def split(index, stride):
@@ -38,7 +39,7 @@ class TopAss(object):
                           ("RectifiedLinear", 2500),
                           ("RectifiedLinear", 2000),
                           ("Linear", )],
-                         dropout=True, learning_rate=0.00001) # 0.000025
+                         dropout=True, learning_rate=0.00001)
 
         try:
             self.bot.load()
@@ -50,35 +51,33 @@ class TopAss(object):
         self.games = 0
         self.winloss = 0
         self.total_reward = 0.0
-        self.epsilon = 0.50001
+        self.epsilon = 0.40001
         self.greedy = None
         self.iterations = 0
 
     def __call__(self, turn, pid, planets, fleets):
         if pid == 1:
-            if self.games % 2 == 0:
-                self.bot.epsilon = 0.0
+            if self.games & 1 == 0:
+                self.bot.epsilon = 0.1
                 n_best = int(40.0 * self.epsilon)
-            if self.games % 2 == 1:
-                self.bot.epsilon = self.epsilon
+            if self.games & 1 != 0:
+                self.bot.epsilon = 2*self.epsilon
                 n_best = 1
-
         else:
             n_best = 1
+            self.bot.epsilon = 1.0
 
             # Hard-coded opponent bots use greedy policy (1-2*epsilon) of the time.
             if random.random() > self.epsilon * 2:
-                if self.games % 3 == 0:
+                if self.games & 2 == 0:
                     self.greedy = strong_to_close
-                if self.games % 3 == 1:
+                if self.games & 2 != 0:
                     self.greedy = strong_to_weak
-                self.bot.epsilon = 0.0
-            else:
-                self.bot.epsilon = 1.0
+                self.bot.epsilon = 0.0             
 
             # One of the three opponents is a fully randomized bot.
-            if self.games % 3 == 2:
-                self.bot.epsilon = 1.0
+            # if self.games % 3 == 2:
+            #    self.bot.epsilon = 1.0
 
         # Build the input matrix for data to feed into the DNN.
         a_inputs = self.createInputVector(pid, planets, fleets)
@@ -128,10 +127,13 @@ class TopAss(object):
             
             self.bot.train_qs(n_epochs=2, n_ratio=0.25, n_batch=n_batch)
             if len(self.bot.memory) > 1000000:
+                self.bot.network.epsilon = 0.0000002
                 self.bot.train_qs(n_epochs=15, n_ratio=0.0, n_batch=n_batch)
             elif len(self.bot.memory) > 500000:
+                self.bot.network.epsilon = 0.000001
                 self.bot.train_qs(n_epochs=5, n_ratio=0.0, n_batch=n_batch)
             elif len(self.bot.memory) > 250000:
+                self.bot.network.epsilon = 0.000002
                 self.bot.train_qs(n_epochs=3, n_ratio=0.0, n_batch=n_batch)
             elif len(self.bot.memory) > 100000:
                 self.bot.train_qs(n_epochs=1, n_ratio=0.0, n_batch=n_batch)
@@ -157,6 +159,14 @@ class TopAss(object):
                     sys.stdout.write('_')
 
     def createOutputVectors(self, pid, planets, fleets):        
+        indices = range(len(planets))
+        # random.shuffle(indices)
+
+        if pid == 2:
+            for i in range(1, len(planets), 2):
+                indices[i], indices[i+1] = indices[i+1], indices[i]
+                assert planets[i].growth == planets[i+1].growth
+
         # Global data used to create/filter possible actions.
         my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)        
         other_planets = their_planets + neutral_planets
@@ -171,8 +181,12 @@ class TopAss(object):
         action_valid = [
             bool(neutral_planets),   # WEAKEST NEUTRAL
             bool(neutral_planets),   # CLOSEST NEUTRAL
+            bool(neutral_planets),   # BEST NEUTRAL
             bool(their_planets),     # WEAKEST ENEMY
             bool(their_planets),     # CLOSEST ENEMY
+            bool(their_planets),     # BEST ENEMY
+            len(my_planets) >= 2,    # WEAKEST FRIENDLY
+            len(my_planets) >= 2,    # CLOSEST FRIENDLY
             len(my_planets) >= 2,    # BEST FRIENDLY
         ]
 
@@ -183,6 +197,7 @@ class TopAss(object):
         a_filter = numpy.zeros((n_actions,))
         for order_id in range(n_actions-1):
             src_id, act_id = split(order_id, ACTIONS)
+            src_id = indices[src_id]
             src = planets[src_id]
             if not action_valid[act_id] or src.owner != pid:
                 orders.append([])
@@ -192,12 +207,20 @@ class TopAss(object):
                 dst = min(neutral_planets, key=lambda x: x.ships * 100 + turn_dist(src, x))
             if act_id == 1: # CLOSEST NEUTRAL
                 dst = min(neutral_planets, key=lambda x: turn_dist(src, x) * 1000 + x.ships)
-            if act_id == 2: # WEAKEST ENEMY
+            if act_id == 2: # BEST NEUTRAL
+                dst = min(neutral_planets, key=lambda x: x.growth * 1000 + x.ships)
+            if act_id == 3: # WEAKEST ENEMY
                 dst = min(their_planets, key=lambda x: x.ships * 100 + turn_dist(src, x))
-            if act_id == 3: # CLOSEST ENEMY
+            if act_id == 4: # CLOSEST ENEMY
                 dst = min(their_planets, key=lambda x: turn_dist(src, x) * 1000 + x.ships)
-            if act_id == 4: # BEST FRIENDLY
-                dst = min(set(my_planets)-set(src), key=lambda x: x.ships + turn_dist(src, x))                
+            if act_id == 5: # BEST ENEMY
+                dst = min(their_planets, key=lambda x: x.growth * 1000 + x.ships)
+            if act_id == 6: # WEAKEST FRIENDLY
+                dst = min(set(my_planets)-set(src), key=lambda x: x.ships * 100 + turn_dist(src, x))
+            if act_id == 7: # CLOSEST FRIENDLY
+                dst = min(set(my_planets)-set(src), key=lambda x: turn_dist(src, x) * 1000.0 + x.ships)
+            if act_id == 8: # BEST FRIENDLY
+                dst = min(set(my_planets)-set(src), key=lambda x: x.growth * 1000 + x.ships)                
 
             if dst.id == src.id:
                 orders.append(None)
@@ -226,9 +249,10 @@ class TopAss(object):
         indices = range(len(planets))
         # random.shuffle(indices)
 
-        # if pid == 2:
-        #    for i in range(1, len(planets), 2):
-        #        indices[i], indices[i+1] = indices[i+1], indices[i]
+        if pid == 2:
+            for i in range(1, len(planets), 2):
+                indices[i], indices[i+1] = indices[i+1], indices[i]
+                assert planets[i].growth == planets[i+1].growth
 
         # 1) Three layers of ship counters for each faction.
         a_ships = numpy.zeros((len(planets), 3))
