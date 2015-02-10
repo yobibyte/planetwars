@@ -84,9 +84,10 @@ class TopAss(object):
         orders, a_filter = self.createOutputVectors(pid, planets, fleets)
 
         # Reward calculated from the action in previous timestep.
-        score = sum([p.growth for p in planets if p.id == pid])
-        reward = (score - self.last_score.get(pid, 0)) / 20.0
-        self.last_score[pid] = score
+        # score = sum([p.growth for p in planets if p.id == pid])
+        # reward = (score - self.last_score.get(pid, 0)) / 20.0
+        # self.last_score[pid] = score
+        reward = 0.0
 
         order_id = self.bot.act_qs(a_inputs, reward * SCALE, episode=pid, terminal=False, q_filter=a_filter, 
                                    n_actions=len(orders), n_best=n_best)
@@ -208,19 +209,19 @@ class TopAss(object):
             if act_id == 1: # CLOSEST NEUTRAL
                 dst = min(neutral_planets, key=lambda x: turn_dist(src, x) * 1000 + x.ships)
             if act_id == 2: # BEST NEUTRAL
-                dst = min(neutral_planets, key=lambda x: x.growth * 1000 + x.ships)
+                dst = max(neutral_planets, key=lambda x: x.growth * 10 - x.ships)
             if act_id == 3: # WEAKEST ENEMY
                 dst = min(their_planets, key=lambda x: x.ships * 100 + turn_dist(src, x))
             if act_id == 4: # CLOSEST ENEMY
                 dst = min(their_planets, key=lambda x: turn_dist(src, x) * 1000 + x.ships)
             if act_id == 5: # BEST ENEMY
-                dst = min(their_planets, key=lambda x: x.growth * 1000 + x.ships)
+                dst = max(their_planets, key=lambda x: x.growth * 10 - x.ships)
             if act_id == 6: # WEAKEST FRIENDLY
                 dst = min(set(my_planets)-set(src), key=lambda x: x.ships * 100 + turn_dist(src, x))
             if act_id == 7: # CLOSEST FRIENDLY
                 dst = min(set(my_planets)-set(src), key=lambda x: turn_dist(src, x) * 1000.0 + x.ships)
             if act_id == 8: # BEST FRIENDLY
-                dst = min(set(my_planets)-set(src), key=lambda x: x.growth * 1000 + x.ships)                
+                dst = max(set(my_planets)-set(src), key=lambda x: x.growth * 10 - x.ships)
 
             if dst.id == src.id:
                 orders.append(None)
