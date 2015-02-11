@@ -37,10 +37,10 @@ class DeepNaN(object):
         self.learning_rate = 0.00002
         self.bot = DeepQ([ # ("RectifiedLinear", 3500),
                            # ("RectifiedLinear", 3500),
-                          ("RectifiedLinear", 2500),
-                          ("RectifiedLinear", 2500),
-                          # ("RectifiedLinear", 2000),
-                          ("RectifiedLinear", 2000),
+                          ("RectifiedLinear", 1500),
+                           # ("RectifiedLinear", 1500),
+                           # ("RectifiedLinear", 2000),
+                          ("RectifiedLinear", 1000),
                           ("Linear", )],
                          dropout=True, learning_rate=self.learning_rate)
 
@@ -56,7 +56,7 @@ class DeepNaN(object):
         self.games = 0
         self.winloss = 0
         self.total_score = 0.0
-        self.epsilon = 0.10001
+        self.epsilon = 0.20001
         self.greedy = None
         self.iterations = 0
 
@@ -133,7 +133,8 @@ class DeepNaN(object):
             #    print "  - adjusting learning rate to %f" % (self.learning_rate,)
             # self.iteration_score[pid] = self.total_score
             
-            self.bot.train_qs(n_epochs=5, n_batch=n_batch)
+            self.bot.train_qs(n_epochs=4, n_batch=n_batch)
+
             """
             if len(self.bot.memory) > 1000000:                
                 self.bot.network.epsilon = 0.000000002

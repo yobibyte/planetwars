@@ -121,7 +121,7 @@ class DeepQ(object):
                 qs = self.__Qs(np.array([state]))[0] - 100.0 * (1.0 - q_filter)
                 # Determine the argmax for multiple possible options.
                 indices = np.argpartition(qs, -self.n_best)[-self.n_best:]
-                action = np.random.choice(indices, self.n_best)
+                action = np.random.choice(indices)
                 probability = ((1.0 - self.epsilon), self.n_best)
         else:
             action = None
@@ -131,7 +131,7 @@ class DeepQ(object):
         if last_s is not None and not terminal:
             self.episodes[episode].append([last_s, action, probability, reward])
 
-        if terminal:            
+        if terminal:
             r, i = reward / self.gamma, 0           
             for ps, action, probability, reward in reversed(self.episodes[episode]):
                 r = max(-1.0, min(+1.0, r * self.gamma + reward))
@@ -174,6 +174,7 @@ class DeepQ(object):
                 mask = np.zeros((self.n_actions), dtype=np.float32)
                 mask[action] = 1.0
 
+                """
                 # Extract original information, and calculate probability.
                 prob, count = probability
                 o = prob / count
@@ -182,12 +183,17 @@ class DeepQ(object):
                 indices = np.argpartition(original[i], -self.n_best)[-self.n_best:]
                 if action in indices:
                     p = (1.0 - self.epsilon) / self.n_best
+                    assert p == o, "argmax: %f == %f" % (p, o)
                 else:
                     p = self.epsilon / count
+                    assert p == o, "random: %f == %f" % (p, o)
 
+                print '.',
                 # Importance sampling, knowing the old probability o and the current p,
-                # renormalize the reward to closer to what it should be now.
-                r = reward * (o / p)
+                # renormalize the reward to closer to what it should be now.                
+                r = max(-1.0, min(+1.0, reward * (o / p)))
+                """
+
                 self.targets[i] = original[i] * (1.0 - mask) + reward * mask
 
             self.network.fit(self.inputs, self.targets, epochs=1)
