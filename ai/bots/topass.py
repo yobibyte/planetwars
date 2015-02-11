@@ -11,9 +11,9 @@ from planetwars.datatypes import Order
 from planetwars.utils import *
 
 # TODO: Evaluate the performance of the NN on other bots outside of the training, separately?
-# TODO: Scale the outputs to 9 (strong|weak|best union friendly|enemy|neutral).
 # TODO: Shuffle the input/output vectors to force abstracting across planet order.
 
+# DONE: Scale the outputs to 9 (weak|closest|best union friendly|enemy|neutral).
 # DONE: Add StrongToClose and StrongToWeak behavior as an epsilon percentage.
 # DONE: Experiment with incrementally decreasing learning rate, or watch oscillations in performance.
 # DONE: Evaluate against known bots at regular intervals, to measure performance.
@@ -31,38 +31,43 @@ def split(index, stride):
 
 
 @planetwars_class
-class TopAss(object):
+class DeepNaN(object):
 
     def __init__(self):
-        self.bot = DeepQ([("RectifiedLinear", 3500),
-                          ("RectifiedLinear", 3000),
+        self.learning_rate = 0.0001
+        self.bot = DeepQ([ # ("RectifiedLinear", 3500),
+                           # ("RectifiedLinear", 3500),
                           ("RectifiedLinear", 2500),
+                          ("RectifiedLinear", 2500),
+                          # ("RectifiedLinear", 2000),
                           ("RectifiedLinear", 2000),
                           ("Linear", )],
-                         dropout=True, learning_rate=0.00001)
+                         dropout=True, learning_rate=self.learning_rate)
 
         try:
             self.bot.load()
-            print "TopAss loaded!"
+            print "DeepNaN loaded!"
         except IOError:
             pass
 
-        self.last_score = {}
+        self.turn_score = {}
+        self.iteration_score = {}
+
         self.games = 0
         self.winloss = 0
-        self.total_reward = 0.0
-        self.epsilon = 0.40001
+        self.total_score = 0.0
+        self.epsilon = 0.20001
         self.greedy = None
         self.iterations = 0
 
     def __call__(self, turn, pid, planets, fleets):
         if pid == 1:
-            if self.games & 1 == 0:
-                self.bot.epsilon = 0.1
-                n_best = int(40.0 * self.epsilon)
-            if self.games & 1 != 0:
-                self.bot.epsilon = 2*self.epsilon
-                n_best = 1
+            # if self.games & 1 == 0:
+            #    self.bot.epsilon = 0.1
+            #    n_best = int(40.0 * self.epsilon)
+            #if self.games & 1 != 0:
+            self.bot.epsilon = self.epsilon
+            n_best = 1
         else:
             n_best = 1
             self.bot.epsilon = 1.0
@@ -85,8 +90,8 @@ class TopAss(object):
 
         # Reward calculated from the action in previous timestep.
         # score = sum([p.growth for p in planets if p.id == pid])
-        # reward = (score - self.last_score.get(pid, 0)) / 20.0
-        # self.last_score[pid] = score
+        # reward = (score - self.turn_score.get(pid, 0)) / 20.0
+        # self.turn_score[pid] = score
         reward = 0.0
 
         order_id = self.bot.act_qs(a_inputs, reward * SCALE, episode=pid, terminal=False, q_filter=a_filter, 
@@ -102,10 +107,7 @@ class TopAss(object):
     def done(self, turns, pid, planets, fleets, won):
         a_inputs = self.createInputVector(pid, planets, fleets)
         n_actions = len(planets) * ACTIONS + 1
-        if turns == 201:
-            score = +0.5 if won else -0.5
-        else:
-            score = +1.0 if won else -1.0
+        score = (1.0 - float(turns)/301.5) ** 2.0 if won else -float(turns)/402.0
 
         self.bot.act_qs(a_inputs, score * SCALE, terminal=True, n_actions=n_actions,
                         q_filter=0.0, episode=pid)
@@ -115,48 +117,61 @@ class TopAss(object):
         
         n_best = int(20.0 * self.epsilon)
         self.games += 1
-        self.total_reward += score
+        self.total_score += score
         self.winloss += int(won) * 2 - 1
 
-        # print '#', int(self.games), "(%i)" % len(self.bot.memory), self.total_reward/self.games*2
+        # print '#', int(self.games), "(%i)" % len(self.bot.memory), self.total_score/self.games*2
         BATCH = 100
         if self.games % BATCH == 0:
+
+            if self.total_score < self.iteration_score.get(pid, -1.0):
+                self.learning_rate /= 2.0
+                self.bot.network.trainer.learning_rate.set_value(self.learning_rate)
+                print "  - adjusting learning rate to %5.2f" % (self.learning_rate,)
+            self.iteration_score[pid] = self.total_score
+
             self.iterations += 1
             n_batch = 5000
-            print "\nIteration %i with ratio %+i as score %f." % (self.iterations, self.winloss, self.total_reward / BATCH)
+            print "\nIteration %i with ratio %+i as score %f." % (self.iterations, self.winloss, self.total_score / BATCH)
             print "  - memory %i, latest %i, batch %i" % (len(self.bot.memory), len(self.bot.memory)-self.bot.last_training, n_batch)
             
-            self.bot.train_qs(n_epochs=2, n_ratio=0.25, n_batch=n_batch)
-            if len(self.bot.memory) > 1000000:
-                self.bot.network.epsilon = 0.0000002
+            self.bot.train_qs(n_epochs=1, n_ratio=0.2, n_batch=n_batch)
+            """
+            if len(self.bot.memory) > 1000000:                
+                self.bot.network.epsilon = 0.000000002
                 self.bot.train_qs(n_epochs=15, n_ratio=0.0, n_batch=n_batch)
             elif len(self.bot.memory) > 500000:
-                self.bot.network.epsilon = 0.000001
+                self.bot.network.epsilon = 0.00000001
                 self.bot.train_qs(n_epochs=5, n_ratio=0.0, n_batch=n_batch)
             elif len(self.bot.memory) > 250000:
-                self.bot.network.epsilon = 0.000002
+                self.bot.network.epsilon = 0.00000004
                 self.bot.train_qs(n_epochs=3, n_ratio=0.0, n_batch=n_batch)
             elif len(self.bot.memory) > 100000:
+                self.bot.network.epsilon = 0.0000002
                 self.bot.train_qs(n_epochs=1, n_ratio=0.0, n_batch=n_batch)
+            """
+            self.bot.memory = self.bot.memory[len(self.bot.memory)/10:]
 
-            if self.epsilon > 0.11:
-                self.epsilon -= 0.025
+            # TODO: Measure impact of decaying the learning vs. learning speed.
+            # if self.epsilon > 0.11:
+            #   self.epsilon -= 0.05
             print "  - skills: top %i moves, or random %3.1f%%" % (n_best, self.epsilon * 100.0)
             self.winloss = 0
-            self.total_reward = 0.0
-            del self.last_score[pid]
+            self.total_score = 0.0
+            if pid in self.turn_score:
+                del self.turn_score[pid]
 
             self.bot.save()
         else:
-            if turns == 201:
-                if score > 0.0:
+            if turns >= 201:
+                if won:
                     sys.stdout.write('o')
-                elif score < 0.0:
+                else:
                     sys.stdout.write('.')
             else:
-                if score > 0.0:
+                if won:
                     sys.stdout.write('O')
-                elif score < 0.0:
+                else:
                     sys.stdout.write('_')
 
     def createOutputVectors(self, pid, planets, fleets):        

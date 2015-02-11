@@ -198,7 +198,7 @@ class DeepQ(object):
             pred_stats[1] += predicted.mean() / float(epochs)
             pred_stats[2] = max(pred_stats[2], predicted.max())
 
-            threshold = 0.1
+            threshold = 0.0 # TODO: Measure impact of discarding easy to approximate samples.
             for i, (action, reward, index) in enumerate(batch):
                 if (predicted[i][action] - reward) ** 2 <= threshold:
                     prune.add(index)
@@ -209,7 +209,8 @@ class DeepQ(object):
         print "\r  - target %f / %f / %f" % tuple(target_stats)
         print "  - pred %f / %f / %f" % tuple(pred_stats)
         print "  - error %f / %f / %f" % tuple(error_stats)
-        print "  - pruned %i with threshold %f" % (len(prune), threshold)
+        if threshold > 0.0 and len(prune):
+            print "  - pruned %i with threshold %f" % (len(prune), threshold)
         self.memory = [m for i, m in enumerate(self.memory) if i not in prune]        
         self.last_training = len(self.memory)
 
