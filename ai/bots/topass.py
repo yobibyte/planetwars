@@ -34,7 +34,7 @@ def split(index, stride):
 class DeepNaN(object):
 
     def __init__(self):
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.00002
         self.bot = DeepQ([ # ("RectifiedLinear", 3500),
                            # ("RectifiedLinear", 3500),
                           ("RectifiedLinear", 2500),
@@ -56,7 +56,7 @@ class DeepNaN(object):
         self.games = 0
         self.winloss = 0
         self.total_score = 0.0
-        self.epsilon = 0.20001
+        self.epsilon = 0.10001
         self.greedy = None
         self.iterations = 0
 
@@ -67,9 +67,7 @@ class DeepNaN(object):
             #    n_best = int(40.0 * self.epsilon)
             #if self.games & 1 != 0:
             self.bot.epsilon = self.epsilon
-            n_best = 1
         else:
-            n_best = 1
             self.bot.epsilon = 1.0
 
             # Hard-coded opponent bots use greedy policy (1-2*epsilon) of the time.
@@ -94,8 +92,8 @@ class DeepNaN(object):
         # self.turn_score[pid] = score
         reward = 0.0
 
-        order_id = self.bot.act_qs(a_inputs, reward * SCALE, episode=pid, terminal=False, q_filter=a_filter, 
-                                   n_actions=len(orders), n_best=n_best)
+        order_id = self.bot.act_qs(a_inputs, reward * SCALE, episode=pid, terminal=False,
+                                   q_filter=a_filter, n_actions=len(orders))
 
         if order_id is None or a_filter[order_id] <= 0.0:
             return []
@@ -107,7 +105,7 @@ class DeepNaN(object):
     def done(self, turns, pid, planets, fleets, won):
         a_inputs = self.createInputVector(pid, planets, fleets)
         n_actions = len(planets) * ACTIONS + 1
-        score = (1.0 - float(turns)/301.5) ** 2.0 if won else -float(turns)/402.0
+        score = (+1.0 - float(turns)/301.5) if won else (-1.0 + float(turns)/301.5)
 
         self.bot.act_qs(a_inputs, score * SCALE, terminal=True, n_actions=n_actions,
                         q_filter=0.0, episode=pid)
@@ -124,18 +122,18 @@ class DeepNaN(object):
         BATCH = 100
         if self.games % BATCH == 0:
 
-            if self.total_score < self.iteration_score.get(pid, -1.0):
-                self.learning_rate /= 2.0
-                self.bot.network.trainer.learning_rate.set_value(self.learning_rate)
-                print "  - adjusting learning rate to %5.2f" % (self.learning_rate,)
-            self.iteration_score[pid] = self.total_score
-
             self.iterations += 1
             n_batch = 5000
             print "\nIteration %i with ratio %+i as score %f." % (self.iterations, self.winloss, self.total_score / BATCH)
             print "  - memory %i, latest %i, batch %i" % (len(self.bot.memory), len(self.bot.memory)-self.bot.last_training, n_batch)
+
+            # if self.total_score < self.iteration_score.get(pid, -1.0):
+            #    self.learning_rate /= 2.0
+            #    self.bot.network.trainer.learning_rate.set_value(self.learning_rate)
+            #    print "  - adjusting learning rate to %f" % (self.learning_rate,)
+            # self.iteration_score[pid] = self.total_score
             
-            self.bot.train_qs(n_epochs=1, n_ratio=0.2, n_batch=n_batch)
+            self.bot.train_qs(n_epochs=5, n_batch=n_batch)
             """
             if len(self.bot.memory) > 1000000:                
                 self.bot.network.epsilon = 0.000000002
