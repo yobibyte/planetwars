@@ -37,18 +37,18 @@ class DeepNaN(object):
         self.learning_rate = 0.0001
         self.bot = DeepQ([ # ("RectifiedLinear", 3500),
                            # ("RectifiedLinear", 3500),
-                          ("RectifiedLinear", 2500),
-                          ("RectifiedLinear", 2500),
+                          #("RectifiedLinear", 2500),
+                          #("RectifiedLinear", 2500),
                           # ("RectifiedLinear", 2000),
                           ("RectifiedLinear", 2000),
                           ("Linear", )],
                          dropout=True, learning_rate=self.learning_rate)
 
-        try:
-            self.bot.load()
-            print "DeepNaN loaded!"
-        except IOError:
-            pass
+        # try:
+        #     self.bot.load()
+        #     print "DeepNaN loaded!"
+        # except IOError:
+        #     pass
 
         self.turn_score = {}
         self.iteration_score = {}
@@ -59,6 +59,8 @@ class DeepNaN(object):
         self.epsilon = 0.20001
         self.greedy = None
         self.iterations = 0
+        self.old_sa = None
+        self.old_q_filter = None
 
     def __call__(self, turn, pid, planets, fleets):
         if pid == 1:
@@ -89,13 +91,16 @@ class DeepNaN(object):
         orders, a_filter = self.createOutputVectors(pid, planets, fleets)
 
         # Reward calculated from the action in previous timestep.
-        # score = sum([p.growth for p in planets if p.id == pid])
-        # reward = (score - self.turn_score.get(pid, 0)) / 20.0
-        # self.turn_score[pid] = score
-        reward = 0.0
+        score = sum([p.growth for p in planets if p.id == pid])
+        reward = (score - self.turn_score.get(pid, 0)) / 20.0
+        self.turn_score[pid] = score
+        ##reward = 0.0
 
-        order_id = self.bot.act_qs(a_inputs, reward * SCALE, episode=pid, terminal=False, q_filter=a_filter, 
+        order_id = self.bot.act_qs(self.old_sa, self.old_q_filter,  a_inputs, reward * SCALE, episode=pid, terminal=False, q_filter=a_filter,
                                    n_actions=len(orders), n_best=n_best)
+
+        self.old_sa = a_inputs
+        self.old_q_filter = a_filter
 
         if order_id is None or a_filter[order_id] <= 0.0:
             return []
@@ -105,12 +110,16 @@ class DeepNaN(object):
         return o
 
     def done(self, turns, pid, planets, fleets, won):
+
         a_inputs = self.createInputVector(pid, planets, fleets)
         n_actions = len(planets) * ACTIONS + 1
         score = (1.0 - float(turns)/301.5) ** 2.0 if won else -float(turns)/402.0
 
-        self.bot.act_qs(a_inputs, score * SCALE, terminal=True, n_actions=n_actions,
+        self.bot.act_qs(self.old_sa, self.old_q_filter, a_inputs, score * SCALE, terminal=True, n_actions=n_actions,
                         q_filter=0.0, episode=pid)
+
+        self.old_sa = None
+        self.old_q_filter = None
 
         if pid == 2:
             return
@@ -119,6 +128,7 @@ class DeepNaN(object):
         self.games += 1
         self.total_score += score
         self.winloss += int(won) * 2 - 1
+        self.winloss/=10.0
 
         # print '#', int(self.games), "(%i)" % len(self.bot.memory), self.total_score/self.games*2
         BATCH = 100

@@ -68,7 +68,7 @@ class DeepQ(object):
         Q = self.network.predict(sas)
         return Q
 
-    def computeTarget(self, last_sa, reward, terminal, all_next_sas):
+    def computeTarget(self, reward, terminal, all_next_sas):
         gamma = self.gamma
         V = 0
         if terminal == 0:
@@ -92,7 +92,7 @@ class DeepQ(object):
         if self.swap_counter % self.swap_iterations == 0:
             pass
 
-    def act_qs(self, state, reward, terminal, n_actions, q_filter, n_best=1, episode=0):
+    def act_qs(self, oldsa, old_q_filter,  state, reward, terminal, n_actions, q_filter, n_best=1, episode=0):
         # Make sure the deep neural network has been correctly initialized given
         # the exact input and output dimensions.
         self.n_actions = n_actions
@@ -105,48 +105,37 @@ class DeepQ(object):
 
         if not terminal:
             if np.random.random() < self.epsilon:
-                nz = q_filter.nonzero()[0]
-                if len(nz):
-                    action = np.random.choice(nz)
-                else:
-                    action = None
+                    nz = q_filter.nonzero()[0]
+                    if len(nz):
+                        action = np.random.choice(nz)
+                    else:
+                        action = None
             else:
-                # Compute the next Q-values for all actions in this state.  These are 
-                # filtered based on which are available, specified by game logic.
-                qs = self.__Qs(np.array([state]))[0] - 100.0 * (1.0 - q_filter)
-                # Determine the argmax for multiple possible options.
-                indices = np.argpartition(qs, -n_best)[-n_best:]
-                action = np.random.choice(indices)
+                    # Compute the next Q-values for all actions in this state.  These are
+                    # filtered based on which are available, specified by game logic.
+                    qs = self.__Qs(np.array([state]))[0] - 100.0 * (1.0 - q_filter)
+                    # Determine the argmax for multiple possible options.
+                    indices = np.argpartition(qs, -n_best)[-n_best:]
+                    action = np.random.choice(indices)
+                    self.memory.append([oldsa, old_q_filter, action, state, q_filter, terminal, reward])
+                    return action
         else:
-            action = None
+            self.memory.append([oldsa, old_q_filter, None, None, None, terminal, reward])
 
-        last_s = self.last.get(episode, None)
-        if last_s is not None and not terminal:
-            self.episodes[episode].append([last_s, action, reward])
 
-        if terminal:            
-            r, i = reward / self.gamma, 0           
-            for ps, action, reward in reversed(self.episodes[episode]):
-                r = max(-1.0, min(+1.0, r * self.gamma + reward))
-                # sqa.max() * (1.0 - self.epsilon) + self.epsilon * sqa.mean()
-                # if reward > 0.0: 
-                if action is not None:
-                    self.memory.append([ps, action, r])
-                i += 1
-
-            self.episodes[episode] = []
-            self.last[episode] = None
-        else:
-            self.last[episode] = state
-        return action
+        return -1
 
     def train_qs(self, n_epochs, n_ratio=0.5, n_batch=5000):
         n_samples = len(self.memory) - self.last_training
-        
+        state_element = 3
         if self.inputs is None:
-            self.inputs = np.zeros((n_batch, self.memory[0][0].size), dtype=np.float32)
+            self.inputs = np.zeros((n_batch, self.memory[0][state_element].size), dtype=np.float32)
         if self.targets is None:
             self.targets = np.zeros((n_batch, self.n_actions), dtype=np.float32)
+        #
+        # print self.inputs.shape
+        # print self.targets.shape
+        # exit()
 
         error_stats = [+float("inf"), 0.0, -float("inf")]
         target_stats = [+float("inf"), 0.0, -float("inf")]
@@ -164,25 +153,57 @@ class DeepQ(object):
         for e in range(epochs):
             batch = []
             for i in range(n_batch):
+
                 if np.random.random() < n_ratio or self.last_training == 0:
                     j = np.random.randint(self.last_training, len(self.memory))
                 else:
                     j = np.random.randint(0, self.last_training)
-                state, action, reward = self.memory[j]
-                self.inputs[i] = state
-                batch.append((action, reward, j))
-        
+                memory_element = self.memory[j]
+                self.inputs[i] = memory_element[state_element]
+
+                while(np.isnan(np.sum(self.inputs[i]))):
+                    if np.random.random() < n_ratio or self.last_training == 0:
+                        j = np.random.randint(self.last_training, len(self.memory))
+                    else:
+                        j = np.random.randint(0, self.last_training)
+                    memory_element = self.memory[j]
+                    self.inputs[i] = memory_element[state_element]
+
+
+
+                #print self.inputs[i].min()
+                batch.append(memory_element)
+            #print self.inputs.min()
             original = self.network.predict(self.inputs)
-            for i, (action, reward, _) in enumerate(batch):
+            for i, (oldsa, old_q_filter, action, state, q_filter, terminal, reward) in enumerate(batch):
                 mask = np.zeros((self.n_actions), dtype=np.float32)
                 mask[action] = 1.0
-                self.targets[i] = original[i] * (1.0 - mask) + reward * mask
+                #print terminal
+                if(q_filter is not None and oldsa is not None):
+                    #print np.array([oldsa]).shape
+                    #exit()
+                    #print i
+                    qs = self.__Qs(np.array([oldsa]))[0] - 100.0 * (1.0 - old_q_filter)
+
+                    maxQ = qs.max()
+
+                    target = reward  + (1-terminal) * self.gamma * maxQ
+                    #print reward, maxQ, reward
+                else:
+                    target = reward
+                    #print reward
+
+                self.targets[i] = original[i] * (1.0 - mask) + target * mask
+                #print i,self.targets[i].shape
+
+            #print self.inputs.min(), self.inputs.max()
+            #print self.targets.min(), self.targets.max()
 
             self.network.fit(self.inputs, self.targets, epochs=1)
             predicted = self.network.predict(self.inputs)
 
             error = []
-            for i, (action, reward, _) in enumerate(batch):
+            for i, (oldsa, old_q_filter, action, state, q_filter, terminal, reward) in enumerate(batch):
                 e = (predicted[i][action] - reward) ** 2.0
                 error.append(e)
             error = np.array(error)
@@ -199,9 +220,9 @@ class DeepQ(object):
             pred_stats[2] = max(pred_stats[2], predicted.max())
 
             threshold = 0.0 # TODO: Measure impact of discarding easy to approximate samples.
-            for i, (action, reward, index) in enumerate(batch):
-                if (predicted[i][action] - reward) ** 2 <= threshold:
-                    prune.add(index)
+            # for i, (action, reward, index) in enumerate(batch):
+            #     if (predicted[i][action] - reward) ** 2 <= threshold:
+            #         prune.add(index)
 
             sys.stdout.write('■'); sys.stdout.flush()
 
