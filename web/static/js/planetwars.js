@@ -33,15 +33,15 @@ function dist(p1, p2) {
 }
 
 function planetRadius(ctx, planet) {
-    return Math.ceil((14 + planet.growth * 4) * (ctx.canvas.width / 800));
+    return Math.ceil((7 + planet.growth * 3) * (ctx.canvas.width / 800));
 }
 
 function fleetRadius(ctx, fleet) {
-    return Math.ceil((10 + fleet.ships * 0.25) * (ctx.canvas.width / 800));
+    return Math.ceil((8 + fleet.ships * 0.2) * (ctx.canvas.width / 800));
 }
 
 function planetFontSize(ctx, planet) {
-    return Math.ceil((14 + planet.growth * 3) * (ctx.canvas.width / 800));
+    return Math.ceil((8 + planet.growth * 2) * (ctx.canvas.width / 800));
 }
 
 function fleetFontSize(ctx, fleet) {
@@ -69,8 +69,10 @@ function makeStaticPlanetData(ctx, planets) {
     top -= yRange * paddingFactor;
     bottom += yRange * paddingFactor;
     var width = ctx.canvas.width;
-    var height = Math.floor(width * yRange / xRange);
-    ctx.canvas.height = height;
+    // var height = Math.floor(width * yRange / xRange);
+    // ctx.canvas.height = height;
+    var height = ctx.canvas.height;
+
     for (var i = 0; i < planets.length; i++) {
         var p = planets[i];
         var x = Math.floor((p.x - left) / (right - left) * width);
