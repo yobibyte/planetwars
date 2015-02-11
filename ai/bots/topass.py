@@ -34,7 +34,7 @@ def split(index, stride):
 class DeepNaN(object):
 
     def __init__(self):
-        self.learning_rate = 0.00002
+        self.learning_rate = 0.00001
         self.bot = DeepQ([ # ("RectifiedLinear", 3500),
                            # ("RectifiedLinear", 3500),
                           ("RectifiedLinear", 1500),

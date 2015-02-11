@@ -4,6 +4,7 @@ __author__ = 'ssamot, schaul'
 
 import sys
 import math
+import random
 import collections
 import cPickle as pickle
 
@@ -105,24 +106,25 @@ class DeepQ(object):
             self.initialised = True
 
         if not terminal:
-            valid_actions = q_filter.nonzero()[0]
+            # Compute the next Q-values for all actions in this state.  These are 
+            # filtered based on which are available, specified by game logic.
+            qs = self.__Qs(np.array([state]))[0] - 100.0 * (1.0 - q_filter)
+            # Determine the argmax for multiple possible options.
+            indices = np.argpartition(qs, -self.n_best)[-self.n_best:]
+
+            non_zero = q_filter.nonzero()[0]
+            valid_actions = list(set(non_zero)-set(indices))
+
             if np.random.random() < self.epsilon:
                 if len(valid_actions):
-                    action = np.random.choice(valid_actions)
-                    # TODO: Discard the best actions from this list, so probability
-                    # below is correct without having to pass more info to learner.
-                    probability = (self.epsilon, len(valid_actions))
+                    action = random.choice(valid_actions)
+                    probability = (self.epsilon, len(valid_actions), q_filter)
                 else:
                     action = None
                     probability = None
-            else:
-                # Compute the next Q-values for all actions in this state.  These are 
-                # filtered based on which are available, specified by game logic.
-                qs = self.__Qs(np.array([state]))[0] - 100.0 * (1.0 - q_filter)
-                # Determine the argmax for multiple possible options.
-                indices = np.argpartition(qs, -self.n_best)[-self.n_best:]
+            else:                        
                 action = np.random.choice(indices)
-                probability = ((1.0 - self.epsilon), self.n_best)
+                probability = ((1.0 - self.epsilon), self.n_best, q_filter)
         else:
             action = None
             probability = None
@@ -174,27 +176,27 @@ class DeepQ(object):
                 mask = np.zeros((self.n_actions), dtype=np.float32)
                 mask[action] = 1.0
 
-                """
                 # Extract original information, and calculate probability.
-                prob, count = probability
+                prob, count, q_filter = probability
                 o = prob / count
 
+                qs = original[i] * -100.0 * (1.0 - q_filter)
                 # Recalculate the current probability given current policy.
-                indices = np.argpartition(original[i], -self.n_best)[-self.n_best:]
+                indices = np.argpartition(qs, -self.n_best)[-self.n_best:]
                 if action in indices:
                     p = (1.0 - self.epsilon) / self.n_best
-                    assert p == o, "argmax: %f == %f" % (p, o)
+                    # print action, indices
+                    # assert p == o, "argmax: %f == %f" % (p, o)
                 else:
                     p = self.epsilon / count
-                    assert p == o, "random: %f == %f" % (p, o)
+                    # print action, indices
+                    # assert p == o, "random: %f == %f" % (p, o)
 
-                print '.',
                 # Importance sampling, knowing the old probability o and the current p,
                 # renormalize the reward to closer to what it should be now.                
                 r = max(-1.0, min(+1.0, reward * (o / p)))
-                """
 
-                self.targets[i] = original[i] * (1.0 - mask) + reward * mask
+                self.targets[i] = original[i] * (1.0 - mask) + r * mask
 
             self.network.fit(self.inputs, self.targets, epochs=1)
             predicted = self.network.predict(self.inputs)
@@ -227,7 +229,7 @@ class DeepQ(object):
         print "\r  - target %f / %f / %f" % tuple(target_stats)
         print "  - pred %f / %f / %f" % tuple(pred_stats)
         print "  - error %f / %f / %f" % tuple(error_stats)
-        if threshold > 0.0 and len(prune):
+        if len(prune):
             print "  - pruned %i with threshold %f" % (len(prune), threshold)
         self.memory = [m for i, m in enumerate(self.memory) if i not in prune]        
         self.last_training = len(self.memory)
