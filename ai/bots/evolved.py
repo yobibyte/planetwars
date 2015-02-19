@@ -1,8 +1,8 @@
-# single-neuron agent with manually "tuned" weights
+# evolved single-neuron agent 
 # written by Michael Buro and Simon Lucas, Jan-27-2015
 # with the help of Alex Champandard
-
-# "professor descent" performed by Bruno Bouzy and Michael Buro
+#
+# evolved by Simon Lucas
 
 import numpy
 import random
@@ -37,62 +37,38 @@ def select_move(pid, planets, fleets):
 #  for i,p in enumerate(planets):
 #    print "PLANET: ", i, p.id, "x=", p.x, "y=", p.y, p.owner, p.ships
   
-  # weights
-  use_new = True
-  if use_new:
-	wv = [
-      +3.0,  # src ships
-      -1.25, # dest ships
-      +0.0,  # my ships total
-      +0.0,  # your ships total
-      +0.0,  # neutral ship total
-      +0.0,  # my total growth
-      +0.0,  # your total growth
-      -3,    # distance , was -6
-      +0.0,  # I own dest planet
-      +30.0, # opponent owns dest planet
-      +10,    # neutral owns dest planet    
-      -1.0,  # src growth
-      +1.0,  # dest growth
-    ]
-
-  else:
-    wv = [
-     +1.0,  # src ships
-     -2.1,  # dest ships
-     +0.0,  # my ships total
-     +0.0,  # your ships total
-     +0.0,  # neutral ship total
-     +0.0,  # my total growth
-     +0.0,  # your total growth
-     -1.5,  # distance , was -1.5
-     +0.0,  # I own dst planet
-     +9.0,  # opponent own dst planet
-     +5.0,  # neutral owns dst planet    
-     -0.5,  # src growth
-     +1.0,  # dst growth
-   ]
-
-  # incoming ship buckets
   buckets = 10
 
-  if use_new:
-    weight_bucket = 2
-    # src incoming ship buckets
-    for i in range(buckets):
-      wv.append(-(i+1)*weight_bucket)
-    # dst incoming ship buckets
-    for i in range(buckets):
-      wv.append(-(i+1)*weight_bucket)
-
-  else:
-    # src incoming ship buckets
-    for i in range(buckets):
-      wv.append(-i*0.5)
-    # dst incoming ship buckets
-    for i in range(buckets):
-      wv.append(-i*0.5)
+  # evolved from manually tuned parameters (agenttest.py)
+  # much better!
+  wv = [0.86775324593161407, -1.9010099177760116, 0.70433224708478814,
+   0.38139294338347268, 0.54156215783780215, -0.26850400844879657,
+   0.036186433238020135, -2.4578285185718509, -0.22894880101333545,
+   8.6048706141753843, 5.9310406603617754, -1.7418715081600573,
+   1.7733665060956196, 0.75099526122482629, -0.24516344621926955,
+   -0.58245534282527744, -1.9683307387551237, -4.5097072412766952,
+   -3.3414734358820031, -1.6702149156291219, -2.8390520001774457,
+   -5.380093894197751, -5.3042483457349077, -1.4015940841792449,
+   -0.8879621041490966, -2.3146041377067901, -0.75674029604322557,
+   -2.194825427869195, -2.7245477291943003, -3.5719201691901739,
+   -3.9302814137729709, -3.6712154408545712, -5.9446914488922378]
   
+
+  # Friday Morning:
+  # wv = [0.87228527101416398, -0.79126636923666871,
+  #       -0.34114544122826324, -1.2090512361564403, 1.4031361661285386,
+  #       0.73674878406987754, -0.516640269495791, -3.1994083525469721,
+  #       -0.5745394282397579, -0.22981889285018697, -1.417569495893277,
+  #       -2.259612849650309, -1.417122273379628, 0.22398736570314653,
+  #       1.1025017800623469, -2.3399564135382556, 0.46038305190135953,
+  #       -0.19313043611744043, 0.83489567169438406, -0.52030771008719445,
+  #       1.5391963665964257, -0.87786985834090447, 1.2020126747923154,
+  #       0.72289829744304113, -1.2814151831330289, 1.3404938004129179,
+  #       -0.58430476934010023, -2.2650232722412449, -0.47874802835808361,
+  #       -1.0517218313694681, -0.1941961917394518, -1.110827613720589,
+  #       -1.543892566692554]
+
+
   my_ships_total = 0
   your_ships_total = 0
   neutral_ships_total = 0
@@ -204,10 +180,7 @@ def select_move(pid, planets, fleets):
         if sum > best_sum:
           best_orders = []
         best_sum = sum
-        if use_new:
-          best_orders.append(Order(src, dst, src.ships*0.45))
-        else:
-          best_orders.append(Order(src, dst, src.ships/2))
+        best_orders.append(Order(src, dst, src.ships/2))
 
   # print "#ORDERS: ", len(best_orders),
   best_order = random.choice(best_orders)
@@ -218,7 +191,7 @@ def select_move(pid, planets, fleets):
   # print "AgentTest: ", best_order
   return [best_order]
 
-@planetwars_ai("AgentTest")
+@planetwars_ai("Evolved")
 def agenttest_ai(turn, pid, planets, fleets):
   return select_move(pid, planets, fleets)
 

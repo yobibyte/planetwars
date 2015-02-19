@@ -107,15 +107,15 @@ class State:
     self.fleets = []
 
     pmax = max(p1_planets, p2_planets)
-
+    id = 0
     if neutral_planets % 2 == 1:
       # odd: create neutral planet at center
-      self.add_planet(MID, MID, 0, self.rnd_ships(), self.rnd_growth())
+      self.add_planet(WH/2, WH/2, 0, self.rnd_ships(), self.rnd_growth(), id)
+      id += 1
       neutral_planets -= 1
 
     # create pmax+neutral_planet/2 symmetrical planet pairs
     # with neutral excess planets
-    id = 0
     for i in range(pmax+neutral_planets/2):
       x = self.rnd_coord(WH, MARGIN)
       y = self.rnd_coord(WH, MARGIN)

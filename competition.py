@@ -1,24 +1,31 @@
+import copy
 import sys
 import random
 import argparse
+import numpy
 
+from operator import itemgetter, attrgetter, methodcaller
 from planetwars import PlanetWars
 from planetwars.views import TextView
 from ai.state import State
+
+def print_planets(planets):
+  for p in planets:
+    print "%3d" % p.id, "%6.2f" % p.x, "%6.2f" % p.y, p.owner, "%4d" % p.ships, "%3d" % p.growth
 
 def main(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument('--collisions', action='store_true', required=False, default=False,
                         help="Should the ships collide with each other?")
-    parser.add_argument('--games', type=int, required=False, default=1000,
-                        help="Number of turns per second run by the game.")
+    parser.add_argument('--games', type=int, required=False, default=100,
+                        help="Number of games to be played.")
     parser.add_argument('--seed', type=int, required=False, default=0,
                         help="Initial rng seed, 0 = system-based")
     parser.add_argument('--p1num', type=int, required=False, default=1,
                         help="Planet number for player 1.")
     parser.add_argument('--p2num', type=int, required=False, default=1,
                         help="Planet number for player 2.")
-    parser.add_argument('--nnum', type=int, required=False, default=10,
+    parser.add_argument('--nnum', type=int, required=False, default=21,
                         help="Number of neutral planets.")
     parser.add_argument('--genmaps', action='store_true', required=False, default=False,
                         help="Generate random maps.")
@@ -43,24 +50,92 @@ def main(argv):
       print "p2num=", arguments.p2num
       print "nnum=",  arguments.nnum
 
-    sums = [0, 0, 0]
-    
-    for i in range(arguments.games):
-      if arguments.genmaps:
-        state = State()
-        state.random_setup(arguments.p1num, arguments.p2num, arguments.nnum)
-        game = PlanetWars(remaining[:2], planets=state.planets, fleets=state.fleets, collisions=arguments.collisions)
-      else:
-        game = PlanetWars(remaining[:2], map_name="map%i" % random.randint(1,100), collisions=arguments.collisions)
-      winner, ship_counts = game.play()
-      print "game ", i, " winner = ", winner
-      sums [winner] += 1
-      print sums
+    players = remaining
+    res = numpy.zeros((len(players), len(players)))
+    time_max = numpy.zeros((len(players)))
+    time_totals = numpy.zeros((len(players)))    
 
+    maps = []
+    
+    for gn in range(arguments.games):
+      n = gn+1
+      state = State()
+      map_name = None
+      if arguments.genmaps:
+        state.random_setup(arguments.p1num, arguments.p2num, arguments.nnum)
+      else:
+        if len(maps) == 0:
+          maps = ["map%i" % i for i in range(1, 100)]
+          random.shuffle(maps, random.random)
+        map_name = maps.pop()
+
+      print "---------"
+      if map_name == None:
+        print "game", gn, "Map: generated"
+      else:
+        print "game", gn, "Map:", map_name
+      print
+      
+      for i1,p1 in enumerate(players):
+        for i2,p2 in enumerate(players):
+          if i2 >= i1:
+            continue
+          pair = [players[i1], players[i2]]
+          if map_name == None:
+            game = PlanetWars(pair, planets=copy.deepcopy(state.planets), \
+                              fleets=copy.deepcopy(state.fleets), collisions=arguments.collisions)
+            #print_planets(state.planets)
+          else:
+            game = PlanetWars(pair, map_name, collisions=arguments.collisions)
+          
+          winner, ship_counts, turns, tt, tm = game.play()
+          
+          print "%-16s vs. %-16s winner= %d turns= %d" % (p1, p2, winner, turns)
+          if winner == 0:
+            res[i1][i2] += 0.5
+            res[i2][i1] += 0.5
+          elif winner == 1:
+            res[i1][i2] += 1
+            res[i2][i1] += 0
+          else:
+            res[i1][i2] += 0
+            res[i2][i1] += 1
+
+          time_totals[i1] += tt[1]/turns
+          time_totals[i2] += tt[2]/turns
+          time_max[i1] = max(time_max[i1], tm[1])
+          time_max[i2] = max(time_max[i2], tm[2])          
+          
+      totals = []
+      list = []
+      for i1,p1 in enumerate(players):
+        total = 0
+        for i2,p2 in enumerate(players):
+          total += res[i1][i2]
+        totals.append(total)
+        list.append((i1, total))
+
+      slist = sorted(list, key=itemgetter(1), reverse=True)
+
+      print
+      print "                            ",
+      for i1,p1 in enumerate(players):
+        print "    %2d" % i1,
+      print
+      
+      for i1,p1 in enumerate(players):
+        mi1 = slist[i1][0]
+        mt1 = slist[i1][1]
+        print "%2d %-17s : %5.1f : " % (i1, players[mi1], 100*mt1/n/(len(players)-1)),
+        for i2,p2 in enumerate(players):
+          mi2 = slist[i2][0]
+          print "%5.1f " % (100*res[mi1][mi2]/n),
+        print " avgt: %7.2f maxt: %7.2f" % (1000*time_totals[mi1]/n/(len(players)-1), 1000*time_max[mi1])
+      
       #sys.stdout.write('.')
       #sys.stdout.flush()
 
-    print sums
+    print res
 
 if __name__ == '__main__':
     import sys

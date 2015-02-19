@@ -1,3 +1,6 @@
+# Rule-based bot written by Pieter Spronck
+# with a bit of parameter tweaking
+
 import random
 
 from .. import planetwars_class

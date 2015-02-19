@@ -50,6 +50,8 @@ class PlanetWars:
         for view in self.views:
             view.initialize(self.turns_per_second, self.planets, self.map_name, self.player_names)
             view.update(planets, fleets)
+        self.time_totals = [0 for i in range(len(self.players))]
+        self.time_max    = [0 for i in range(len(self.players))]
         next_turn = time.time() + self.turn_duration
         winner = -1
         while winner < 0:
@@ -66,6 +68,7 @@ class PlanetWars:
                 view.update(planets, fleets)
             # Check for end game.
             winner, ship_counts, turns = self.gameover()
+            # print winner, ship_counts, turns
 
         for view in self.views:
             view.game_over(winner, ship_counts, turns)
@@ -75,7 +78,7 @@ class PlanetWars:
                 p.done(winner == i, turns)
             except AttributeError:
                 pass
-        return winner, ship_counts
+        return winner, ship_counts, turns, self.time_totals, self.time_max
 
 
     def do_turn(self):
@@ -83,13 +86,23 @@ class PlanetWars:
 
         # Get orders
         planets, fleets = self.freeze()
-        player_orders = [player(self.turn, i, planets, fleets) for i, player in enumerate(self.players)]
+        player_orders = []
+
+        for i, player in enumerate(self.players):
+          prev = time.time()
+          player_orders.append(player(self.turn, i, planets, fleets))
+          t = time.time()-prev
+          self.time_totals[i] += t
+          if t > self.time_max[i]:
+            self.time_max[i] = t
+
         self.turn += 1
 
         # Departure
         for player, orders in enumerate(player_orders):
-            for order in orders:
-                self.issue_order(player, order)
+#          print "turn", self.turn, "player:", player, "orders:", orders
+          for order in orders:
+            self.issue_order(player, order)
 
         # Advancement
         for planet in self.planets:

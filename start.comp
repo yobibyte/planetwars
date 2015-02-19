@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# tournament
+
+#p="AgentTest AgentTest2 StrongToWeak AllToWeak AllToCloseOrWeak Random"
+#p="AgentTest AgentTest2 Random"
+p="AgentTest Hotshot MCTS2 Evolved"
+python competition.py $@ $p

@@ -1,3 +1,5 @@
+# MCTS bot written by Peter Cowling
+
 import random
 import copy
 
@@ -19,11 +21,16 @@ class MCTS2(object):
         self.rootplanets = planets
         self.rootfleets = fleets
 
+        # added by mburo
+        my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
+        if len(my_planets) == 0:
+          return []
+        
         pws = PlanetWarsState(turn, pid, planets, fleets)
         #print"Starting UCT - the Universe looks like:"
         #pws.PrintUniverse()
 
-        return UCT(pws, 5, False)
+        return UCT(pws, 5, False) # 5: 114 ms avg. time - TOO LONG
 
     def PrintOrders(self):
         print ("Orders for player: " + str(self.pid))
@@ -32,7 +39,7 @@ class MCTS2(object):
             print o
         assert False
 
-    def done(self, won):
+    def done(self, won, turns):
         pass
 
 
@@ -270,3 +277,19 @@ def UCT(rootstate, itermax, verbose = False):
 
 
 
+# BUG!
+#
+# Traceback (most recent call last):
+#   File "competition.py", line 142, in <module>
+#     main(sys.argv[1:])
+#   File "competition.py", line 91, in main
+#     winner, ship_counts, turns, tt, tm = game.play()
+#   File "/home/mburo/etc/planetwars/planetwars/game.py", line 64, in play
+#     self.do_turn()
+#   File "/home/mburo/etc/planetwars/planetwars/game.py", line 93, in do_turn
+#     player_orders.append(player(self.turn, i, planets, fleets))
+#   File "/home/mburo/etc/planetwars/ai/bots/MonteCarloTS2.py", line 31, in __call__
+#     return UCT(pws, 5, False) # 5: 114 ms avg. time - TOO BIG
+#   File "/home/mburo/etc/planetwars/ai/bots/MonteCarloTS2.py", line 264, in UCT
+#     move = sorted(rootnode.childNodes, key = lambda c: c.visits)[-1].move # return the move that was most visited
+# IndexError: list index out of range
