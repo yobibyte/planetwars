@@ -10,7 +10,7 @@ from pylearn2.datasets import DenseDesignMatrix
 from pylearn2.training_algorithms import sgd
 from pylearn2.models import mlp, maxout
 from pylearn2.costs.mlp.dropout import Dropout
-from pylearn2.training_algorithms.learning_rule import AdaGrad, RMSProp
+from pylearn2.training_algorithms.learning_rule import AdaGrad, RMSProp, AdaDelta
 
 
 class sknn():

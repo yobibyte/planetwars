@@ -20,7 +20,7 @@ class DeepQ(object):
         self.network = sknn(layers, dropout, input_scaler, output_scaler, learning_rate, verbose)
         
         self.gamma = 0.99
-        self.epsilon = 0.01
+        self.epsilon = 0.1
         self.n_best = 1
 
         self.initialised = False
@@ -190,6 +190,8 @@ class DeepQ(object):
             for i, (action, probability, reward, _) in enumerate(batch):
                 e = (predicted[i][action] - reward) ** 2.0
                 error.append(e)
+
+                #print e
             error = np.array(error)
             error_stats[0] = min(error_stats[0], error.min())
             error_stats[1] += error.mean() / float(n_epochs)

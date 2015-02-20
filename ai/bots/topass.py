@@ -59,6 +59,7 @@ class DeepNaN(object):
         self.epsilon = 0.20001
         self.greedy = None
         self.iterations = 0
+        self.previous = -1
 
     def __call__(self, turn, pid, planets, fleets):
         if pid == 1:
@@ -118,6 +119,7 @@ class DeepNaN(object):
         self.total_score += score
         self.winloss += int(won) * 2 - 1
 
+        score =  int(won) * 2 - 1
         # print '#', int(self.games), "(%i)" % len(self.bot.memory), self.total_score/self.games*2
         BATCH = 1
         if self.games % BATCH == 0:
@@ -132,9 +134,10 @@ class DeepNaN(object):
             #    self.bot.network.trainer.learning_rate.set_value(self.learning_rate)
             #    print "  - adjusting learning rate to %f" % (self.learning_rate,)
             # self.iteration_score[pid] = self.total_score
-            
+            #if(score !=self.previous):
             self.bot.train_qs(n_epochs=4, n_batch=n_batch)
-
+            #else:
+            #print "ignoring"
             """
             if len(self.bot.memory) > 1000000:                
                 self.bot.network.epsilon = 0.000000002
@@ -156,11 +159,18 @@ class DeepNaN(object):
             #   self.epsilon -= 0.05
             print "  - skills: top %i moves, or random %3.1f%%" % (n_best, self.epsilon * 100.0)
             #self.winloss = 0
-            self.total_score = 0.0
+            #self.total_score = 0.0
             if pid in self.turn_score:
                 del self.turn_score[pid]
 
             #self.bot.save()
+
+        self.previous = score
+
+        if(self.games %100 == 0):
+            self.winloss = 0
+            self.total_score = 0
+            #self.iteration = 0
         else:
             if turns >= 201:
                 if won:
@@ -172,6 +182,8 @@ class DeepNaN(object):
                     sys.stdout.write('O')
                 else:
                     sys.stdout.write('_')
+
+
 
     def createOutputVectors(self, pid, planets, fleets):        
         indices = range(len(planets))
