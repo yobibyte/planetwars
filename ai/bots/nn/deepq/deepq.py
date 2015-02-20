@@ -20,7 +20,7 @@ class DeepQ(object):
         self.network = sknn(layers, dropout, input_scaler, output_scaler, learning_rate, verbose)
         
         self.gamma = 0.99
-        self.epsilon = 0.15
+        self.epsilon = 0.01
         self.n_best = 1
 
         self.initialised = False
@@ -42,45 +42,11 @@ class DeepQ(object):
     def addToMemory(self, *args):
         self.memory += [args]
 
-    def train_from_memory(self, updates):
-
-        if len(self.memory) > 1000:
-          updates = min(len(self.memory)/2, updates)
-          inputs = np.zeros((updates, self.memory[0][0].size))
-          targets = np.zeros((updates, 1))
-          for update in range(updates):
-
-            r = np.random.randint(len(self.memory))
-            input = self.memory[r]
-            target = self.computeTarget(*input)
-
-            inputs[update] = input[0]
-            targets[update] = target
-
-          self.network.fit(inputs, targets, 20)
-        else:
-           print "not enough"
-        if len(self.memory) > self.max_memory:
-           print "clipped memory"
-           self.memory = self.memory[self.max_memory/2:]
-
-
     def __Qs(self,sas):
         Q = self.network.predict(sas)
+       # print Q.max(), Q.min()
         return Q
 
-    def computeTarget(self, last_sa, reward, terminal, all_next_sas):
-        gamma = self.gamma
-        V = 0
-        if terminal == 0:
-            Qs = self.__Qs(all_next_sas)
-            maxQ = Qs.max()
-            V = maxQ * (1-self.epsilon) + self.epsilon * Qs.mean()
-            #print maxQ
-
-        target = reward  + (1-terminal) * gamma * V
-
-        return target
 
     def fit(self,last_sa, reward, terminal, all_next_sas):
         gamma = self.gamma
@@ -132,14 +98,32 @@ class DeepQ(object):
             self.episodes[episode].append([last_s, action, probability, reward])
 
         if terminal:
-            r, i = reward / self.gamma, 0           
-            for ps, action, probability, reward in reversed(self.episodes[episode]):
-                r = max(-1.0, min(+1.0, r * self.gamma + reward))
+            #r, i = reward / self.gamma, 0
+            discount = self.gamma**(len(self.episodes[episode])-1.0)
+
+            #print len(self.episodes[episode])-1.0
+            #print discount
+            #exit()
+            for ps, action, probability, _ in reversed(self.episodes[episode]):
+                #r = max(-1.0, min(+1.0, r * self.gamma + reward))
                 # sqa.max() * (1.0 - self.epsilon) + self.epsilon * sqa.mean()
-                # if reward > 0.0: 
+                # if reward > 0.0:
                 if action is not None:
-                    self.memory.append([ps, action, probability, r])
-                i += 1
+                    discounted_reward = discount * reward
+                    #print discounted_reward, discount, reward
+                    #exit()
+                    self.memory.append([ps, action, probability, discounted_reward])
+                #i += 1
+
+        # if terminal:
+        #     r, i = reward / self.gamma, 0
+        #     for ps, action, probability, reward in reversed(self.episodes[episode]):
+        #         r = max(-1.0, min(+1.0, r * self.gamma + reward))
+        #         # sqa.max() * (1.0 - self.epsilon) + self.epsilon * sqa.mean()
+        #         # if reward > 0.0:
+        #         if action is not None:
+        #             self.memory.append([ps, action, probability, r])
+        #         i += 1
 
             self.episodes[episode] = []
             self.last[episode] = None
@@ -147,33 +131,36 @@ class DeepQ(object):
             self.last[episode] = state
         return action
 
-    def train_qs(self, n_epochs, n_batch=5000):        
-        if self.inputs is None:
-            self.inputs = np.zeros((n_batch, self.memory[0][0].size), dtype=np.float32)
-        if self.targets is None:
-            self.targets = np.zeros((n_batch, self.n_actions), dtype=np.float32)
+    def train_qs(self, n_epochs, n_batch=5000):
+        #if self.inputs is None:
+        self.inputs = np.zeros((len(self.memory), self.memory[0][0].size), dtype=np.float32)
+        self.targets = np.zeros((len(self.memory), self.n_actions), dtype=np.float32)
 
         error_stats = [+float("inf"), 0.0, -float("inf")]
         target_stats = [+float("inf"), 0.0, -float("inf")]
         pred_stats = [+float("inf"), 0.0, -float("inf")]
 
-        n_epochs = int(math.ceil(n_epochs * len(self.memory) / n_batch))
+        #n_epochs = int(math.ceil(n_epochs * len(self.memory) / n_batch))
+        n_epochs = 1
         print "  - training %i epochs of batch size %i" % (n_epochs, n_batch)
         print "  - ",
         prune = set()
         for e in range(n_epochs):
             batch = []
-            for i in range(n_batch):
-                j = np.random.randint(0, len(self.memory))
+            #posivite_reward = 0
+            #negative_rewards = 0
+            for j in range(len(self.memory)):
                 state, action, probability, reward = self.memory[j]
-                self.inputs[i] = state
+                self.inputs[j] = state
                 batch.append((action, probability, reward, j))
+                #print reward
         
             original = self.network.predict(self.inputs)
             for i, (action, probability, reward, _) in enumerate(batch):
                 mask = np.zeros((self.n_actions), dtype=np.float32)
                 mask[action] = 1.0
-
+                # print self.n_actions
+                # exit()
                 """
                 # Extract original information, and calculate probability.
                 prob, count = probability
@@ -229,46 +216,10 @@ class DeepQ(object):
         print "  - error %f / %f / %f" % tuple(error_stats)
         if threshold > 0.0 and len(prune):
             print "  - pruned %i with threshold %f" % (len(prune), threshold)
-        self.memory = [m for i, m in enumerate(self.memory) if i not in prune]        
+        self.memory = []
         self.last_training = len(self.memory)
 
-    # e-greedy
-    def act(self,all_next_sas, reward, terminal):
 
-        if(not self.initialised):
-            sa = all_next_sas[0].reshape(1,all_next_sas[0].size)
-            target = np.array([[0]])
-            #print target.shape, sa.shape
-            self.network.fit(sa,target)
-            self.initialised = True
-
-        if(np.random.random() < self.epsilon):
-            r =  np.random.randint( 0,len(all_next_sas))
-            #print "returning random action", r
-            action =  r
-        else:
-            #print "returning best action", b_action
-            Q = self.__Qs(all_next_sas)
-            maxQ = Q.max()
-            actions = []
-            for i,q in enumerate(Q):
-                if(q == maxQ):
-                    actions.append(i)
-            #print actions
-            b_action = actions[np.random.randint(len(actions))]
-
-            #print b_action
-            action =  b_action
-
-        last_sa = self.last_sa
-
-        if(last_sa is not None):
-            self.addToMemory(last_sa, reward, terminal, all_next_sas)
-
-
-        self.last_sa = all_next_sas[action]
-
-        return action
 
     def save(self):
         out_path = "./dq.pickle"

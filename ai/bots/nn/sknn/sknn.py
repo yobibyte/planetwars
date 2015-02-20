@@ -10,7 +10,7 @@ from pylearn2.datasets import DenseDesignMatrix
 from pylearn2.training_algorithms import sgd
 from pylearn2.models import mlp, maxout
 from pylearn2.costs.mlp.dropout import Dropout
-
+from pylearn2.training_algorithms.learning_rule import AdaGrad, RMSProp
 
 
 class sknn():
@@ -35,7 +35,8 @@ class sknn():
         self.f = None
         self.verbose = verbose
         cost = Dropout() if dropout else None
-        self.trainer = sgd.SGD(learning_rate=learning_rate, cost=cost, batch_size=100)
+        #self.rmsprop =
+        self.trainer = sgd.SGD(learning_rate=learning_rate, cost=cost, batch_size=10000)
 
         self.input_normaliser = input_scaler
         self.output_normaliser = output_scaler

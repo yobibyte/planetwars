@@ -34,21 +34,21 @@ def split(index, stride):
 class DeepNaN(object):
 
     def __init__(self):
-        self.learning_rate = 0.00002
+        self.learning_rate = 0.0001
         self.bot = DeepQ([ # ("RectifiedLinear", 3500),
                            # ("RectifiedLinear", 3500),
-                          ("RectifiedLinear", 1500),
+                          #("RectifiedLinear", 1500),
                            # ("RectifiedLinear", 1500),
                            # ("RectifiedLinear", 2000),
-                          ("RectifiedLinear", 1000),
+                          ("RectifiedLinear", 2000),
                           ("Linear", )],
-                         dropout=True, learning_rate=self.learning_rate)
+                         dropout=False, learning_rate=self.learning_rate)
 
-        try:
-            self.bot.load()
-            print "DeepNaN loaded!"
-        except IOError:
-            pass
+        # try:
+        #     self.bot.load()
+        #     print "DeepNaN loaded!"
+        # except IOError:
+        #     pass
 
         self.turn_score = {}
         self.iteration_score = {}
@@ -107,7 +107,7 @@ class DeepNaN(object):
         n_actions = len(planets) * ACTIONS + 1
         score = (+1.0 - float(turns)/301.5) if won else (-1.0 + float(turns)/301.5)
 
-        self.bot.act_qs(a_inputs, score * SCALE, terminal=True, n_actions=n_actions,
+        self.bot.act_qs(a_inputs, int(won) * 2.0 - 1, terminal=True, n_actions=n_actions,
                         q_filter=0.0, episode=pid)
 
         if pid == 2:
@@ -119,7 +119,7 @@ class DeepNaN(object):
         self.winloss += int(won) * 2 - 1
 
         # print '#', int(self.games), "(%i)" % len(self.bot.memory), self.total_score/self.games*2
-        BATCH = 100
+        BATCH = 1
         if self.games % BATCH == 0:
 
             self.iterations += 1
@@ -149,18 +149,18 @@ class DeepNaN(object):
                 self.bot.network.epsilon = 0.0000002
                 self.bot.train_qs(n_epochs=1, n_ratio=0.0, n_batch=n_batch)
             """
-            self.bot.memory = self.bot.memory[len(self.bot.memory)/10:]
+            #self.bot.memory = self.bot.memory[len(self.bot.memory)/10:]
 
             # TODO: Measure impact of decaying the learning vs. learning speed.
             # if self.epsilon > 0.11:
             #   self.epsilon -= 0.05
             print "  - skills: top %i moves, or random %3.1f%%" % (n_best, self.epsilon * 100.0)
-            self.winloss = 0
+            #self.winloss = 0
             self.total_score = 0.0
             if pid in self.turn_score:
                 del self.turn_score[pid]
 
-            self.bot.save()
+            #self.bot.save()
         else:
             if turns >= 201:
                 if won:
