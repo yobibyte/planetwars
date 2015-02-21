@@ -29,6 +29,20 @@ def strong_to_close(turn, pid, planets, fleets):
     other_closest = min(other_planets, key=lambda x: turn_dist(my_strongest, x) * 1000 + x.ships)
     return [Order(my_strongest, other_closest, my_strongest.ships * 0.5)]
 
+@planetwars_ai("StrongToBest")
+def strong_to_best(turn, pid, planets, fleets):
+    if random.random() > 0.9:
+        return random_ai(turn, pid, planets, fleets)
+
+    my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)
+    other_planets = their_planets + neutral_planets
+    if len(my_planets) == 0 or len(other_planets) == 0:
+        return []
+    my_strongest = max(my_planets, key=get_ships)
+    other_best = max(other_planets, key=lambda x: x.growth / (1.0+x.ships+turn_dist(my_strongest, x)*5))
+    return [Order(my_strongest, other_best, my_strongest.ships * 0.5)]
+
+
 @planetwars_ai("AllToWeak")
 def all_to_weak(turn, pid, planets, fleets):
     my_planets, their_planets, _ = aggro_partition(pid, planets)
