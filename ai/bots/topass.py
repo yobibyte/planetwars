@@ -34,7 +34,7 @@ def split(index, stride):
 class DeepNaN(object):
 
     def __init__(self):
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.00001
         self.bot = DeepQ([ # ("RectifiedLinear", 3500),
                            # ("RectifiedLinear", 3500),
                           #("RectifiedLinear", 1500),
@@ -44,11 +44,11 @@ class DeepNaN(object):
                           ("Linear", )],
                          dropout=False, learning_rate=self.learning_rate)
 
-        # try:
-        #     self.bot.load()
-        #     print "DeepNaN loaded!"
-        # except IOError:
-        #     pass
+        try:
+            self.bot.load()
+            print "DeepNaN loaded!"
+        except IOError:
+            pass
 
         self.turn_score = {}
         self.iteration_score = {}
@@ -77,7 +77,7 @@ class DeepNaN(object):
                     self.greedy = strong_to_close
                 if self.games & 2 != 0:
                     self.greedy = strong_to_weak
-                self.bot.epsilon = 0.0             
+                self.bot.epsilon = 0.0
 
             # One of the three opponents is a fully randomized bot.
             # if self.games % 3 == 2:
@@ -163,7 +163,7 @@ class DeepNaN(object):
             if pid in self.turn_score:
                 del self.turn_score[pid]
 
-            #self.bot.save()
+            self.bot.save()
 
         self.previous = score
 

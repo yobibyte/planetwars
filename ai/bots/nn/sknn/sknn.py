@@ -61,6 +61,7 @@ class sknn():
             return self.output_normaliser.inverse_transform(y)
 
     def linit(self, X, y):
+        if(self.ds is not None): return
         if(self.verbose > 0):
             print "Lazy initialisation"
 
