@@ -159,9 +159,8 @@ class DeepQ(object):
         target_stats = [+float("inf"), 0.0, -float("inf")]
         pred_stats = [+float("inf"), 0.0, -float("inf")]
 
-        n_epochs = int(math.ceil(n_epochs * len(self.memory) / n_batch))
-        print "  - training %i epochs of batch size %i" % (n_epochs, n_batch)
-        print "  - ",
+        # print "  - training %i epochs of batch size %i" % (n_epochs, n_batch)
+        # print "  - ",
         prune = set()
         for e in range(n_epochs):
             batch = []
@@ -196,7 +195,7 @@ class DeepQ(object):
                 # renormalize the reward to closer to what it should be now.                
                 r = max(-1.0, min(+1.0, reward * (o / p)))
 
-                self.targets[i] = original[i] * (1.0 - mask) + r * mask
+                self.targets[i] = original[i] * (1.0 - mask) + reward * mask
 
             self.network.fit(self.inputs, self.targets, epochs=1)
             predicted = self.network.predict(self.inputs)
@@ -223,14 +222,14 @@ class DeepQ(object):
                 if (predicted[i][action] - reward) ** 2 <= threshold:
                     prune.add(index)
 
-            sys.stdout.write('■'); sys.stdout.flush()
+            # sys.stdout.write('■'); sys.stdout.flush()
 
-        print "\r" + " " * (n_epochs + 4),
-        print "\r  - target %f / %f / %f" % tuple(target_stats)
-        print "  - pred %f / %f / %f" % tuple(pred_stats)
-        print "  - error %f / %f / %f" % tuple(error_stats)
-        if len(prune):
-            print "  - pruned %i with threshold %f" % (len(prune), threshold)
+        # print "\r" + " " * (n_epochs + 4),
+        # print "\r  - target %f / %f / %f" % tuple(target_stats)
+        # print "  - pred %f / %f / %f" % tuple(pred_stats)
+        # print "  - error %f / %f / %f" % tuple(error_stats)
+        # if len(prune):
+        #     print "  - pruned %i with threshold %f" % (len(prune), threshold)
         self.memory = [m for i, m in enumerate(self.memory) if i not in prune]        
         self.last_training = len(self.memory)
 

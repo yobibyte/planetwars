@@ -34,7 +34,7 @@ def split(index, stride):
 class DeepNaN(object):
 
     def __init__(self):
-        self.learning_rate = 0.00001
+        self.learning_rate = 0.00005
         self.bot = DeepQ([ # ("RectifiedLinear", 3500),
                            # ("RectifiedLinear", 3500),
                           ("RectifiedLinear", 1500),
@@ -42,7 +42,7 @@ class DeepNaN(object):
                            # ("RectifiedLinear", 2000),
                           ("RectifiedLinear", 1000),
                           ("Linear", )],
-                         dropout=True, learning_rate=self.learning_rate)
+                         dropout=False, learning_rate=self.learning_rate)
 
         try:
             self.bot.load()
@@ -56,7 +56,7 @@ class DeepNaN(object):
         self.games = 0
         self.winloss = 0
         self.total_score = 0.0
-        self.epsilon = 0.20001
+        self.epsilon = 0.10001
         self.greedy = None
         self.iterations = 0
 
@@ -105,7 +105,7 @@ class DeepNaN(object):
     def done(self, turns, pid, planets, fleets, won):
         a_inputs = self.createInputVector(pid, planets, fleets)
         n_actions = len(planets) * ACTIONS + 1
-        score = (+1.0 - float(turns)/301.5) if won else (-1.0 + float(turns)/301.5)
+        score = +1.0 if won else -1.0
 
         self.bot.act_qs(a_inputs, score * SCALE, terminal=True, n_actions=n_actions,
                         q_filter=0.0, episode=pid)
@@ -118,47 +118,22 @@ class DeepNaN(object):
         self.total_score += score
         self.winloss += int(won) * 2 - 1
 
-        # print '#', int(self.games), "(%i)" % len(self.bot.memory), self.total_score/self.games*2
+        n_batch = 200
+        self.bot.train_qs(n_epochs=1, n_batch=n_batch)
+        self.bot.memory = self.bot.memory[len(self.bot.memory)/20:]
+        if pid in self.turn_score:
+            del self.turn_score[pid]
+
         BATCH = 100
         if self.games % BATCH == 0:
 
             self.iterations += 1
-            n_batch = 5000
             print "\nIteration %i with ratio %+i as score %f." % (self.iterations, self.winloss, self.total_score / BATCH)
             print "  - memory %i, latest %i, batch %i" % (len(self.bot.memory), len(self.bot.memory)-self.bot.last_training, n_batch)
-
-            # if self.total_score < self.iteration_score.get(pid, -1.0):
-            #    self.learning_rate /= 2.0
-            #    self.bot.network.trainer.learning_rate.set_value(self.learning_rate)
-            #    print "  - adjusting learning rate to %f" % (self.learning_rate,)
-            # self.iteration_score[pid] = self.total_score
-            
-            self.bot.train_qs(n_epochs=4, n_batch=n_batch)
-
-            """
-            if len(self.bot.memory) > 1000000:                
-                self.bot.network.epsilon = 0.000000002
-                self.bot.train_qs(n_epochs=15, n_ratio=0.0, n_batch=n_batch)
-            elif len(self.bot.memory) > 500000:
-                self.bot.network.epsilon = 0.00000001
-                self.bot.train_qs(n_epochs=5, n_ratio=0.0, n_batch=n_batch)
-            elif len(self.bot.memory) > 250000:
-                self.bot.network.epsilon = 0.00000004
-                self.bot.train_qs(n_epochs=3, n_ratio=0.0, n_batch=n_batch)
-            elif len(self.bot.memory) > 100000:
-                self.bot.network.epsilon = 0.0000002
-                self.bot.train_qs(n_epochs=1, n_ratio=0.0, n_batch=n_batch)
-            """
-            self.bot.memory = self.bot.memory[len(self.bot.memory)/10:]
-
-            # TODO: Measure impact of decaying the learning vs. learning speed.
-            # if self.epsilon > 0.11:
-            #   self.epsilon -= 0.05
             print "  - skills: top %i moves, or random %3.1f%%" % (n_best, self.epsilon * 100.0)
+
             self.winloss = 0
             self.total_score = 0.0
-            if pid in self.turn_score:
-                del self.turn_score[pid]
 
             self.bot.save()
         else:
