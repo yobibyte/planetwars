@@ -34,15 +34,12 @@ def split(index, stride):
 class DeepNaN(object):
 
     def __init__(self):
-        self.learning_rate = 0.00005
-        self.bot = DeepQ([ # ("RectifiedLinear", 3500),
-                           # ("RectifiedLinear", 3500),
+        self.learning_rate = 0.00001
+        self.bot = DeepQ([("RectifiedLinear", 2500),
                           ("RectifiedLinear", 1500),
-                           # ("RectifiedLinear", 1500),
-                           # ("RectifiedLinear", 2000),
                           ("RectifiedLinear", 1000),
                           ("Linear", )],
-                         dropout=False, learning_rate=self.learning_rate)
+                          dropout=False, learning_rate=self.learning_rate)
 
         try:
             self.bot.load()
@@ -56,7 +53,7 @@ class DeepNaN(object):
         self.games = 0
         self.winloss = 0
         self.total_score = 0.0
-        self.epsilon = 0.10001
+        self.epsilon = 0.20001
         self.greedy = None
         self.iterations = 0
 
@@ -120,7 +117,7 @@ class DeepNaN(object):
 
         n_batch = 200
         self.bot.train_qs(n_epochs=1, n_batch=n_batch)
-        self.bot.memory = self.bot.memory[len(self.bot.memory)/20:]
+        self.bot.memory = self.bot.memory[len(self.bot.memory)/250:]
         if pid in self.turn_score:
             del self.turn_score[pid]
 
@@ -150,12 +147,6 @@ class DeepNaN(object):
 
     def createOutputVectors(self, pid, planets, fleets):        
         indices = range(len(planets))
-        # random.shuffle(indices)
-
-        if pid == 2:
-            for i in range(1, len(planets), 2):
-                indices[i], indices[i+1] = indices[i+1], indices[i]
-                assert planets[i].growth == planets[i+1].growth
 
         # Global data used to create/filter possible actions.
         my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)        
@@ -216,16 +207,8 @@ class DeepNaN(object):
                 orders.append(None)
                 continue
 
-            if order is None:
-                orders.append([Order(src, dst, src.ships * 0.5)])
-                a_filter[order_id] = 1.0
-            else:
-                if order.source.id == src_id and order.destination.id == dst.id:
-                    orders.append([Order(src, dst, src.ships * 0.5)])
-                    a_filter[order_id] = 1.0
-                    order = None
-                else:
-                    orders.append(None)
+            orders.append([Order(src, dst, src.ships * 0.5)])
+            a_filter[order_id] = 1.0
 
         # NO-OP.
         a_filter[-1] = 1.0
