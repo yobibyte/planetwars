@@ -152,13 +152,6 @@ class DeepNaN(object):
         my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)        
         other_planets = their_planets + neutral_planets
 
-        order = None
-        if self.greedy:
-            g = self.greedy(0, pid, planets, fleets)
-            if len(g) > 0:
-                order = g[0]
-            self.greedy = None
-
         action_valid = [
             bool(neutral_planets),   # WEAKEST NEUTRAL
             bool(neutral_planets),   # CLOSEST NEUTRAL
@@ -214,44 +207,42 @@ class DeepNaN(object):
         a_filter[-1] = 1.0
         orders.append([])
 
-        assert order is None, "Neural network did not support the greedy order suggested."
         return orders, a_filter
 
 
     def createInputVector(self, pid, planets, fleets):
         indices = range(len(planets))
-        # random.shuffle(indices)
-
-        if pid == 2:
-            for i in range(1, len(planets), 2):
-                indices[i], indices[i+1] = indices[i+1], indices[i]
-                assert planets[i].growth == planets[i+1].growth
-
-        # 1) Three layers of ship counters for each faction.
-        a_ships = numpy.zeros((len(planets), 3))
-        for p in planets:
-            if p.owner == 0:
-               a_ships[indices[p.id], 0] = 1+p.ships
-            if p.owner == pid:
-               a_ships[indices[p.id], 1] = 1+p.ships
-            if p.owner != pid:
-               a_ships[indices[p.id], 2] = 1+p.ships               
-
-        # 2) Growth rate for all planets.
-        a_growths = numpy.array([planets[i].growth for i in indices])
-
-        # 3) Distance matrix for planet pairs.
-        a_dists = numpy.zeros((len(planets), len(planets)))
-        for A, B in itertools.product(planets, planets):
-            a_dists[indices[A.id], indices[B.id]] = dist(A, B)
-
-        # 4) Incoming ships bucketed by arrival time (logarithmic)
         n_buckets = 12
-        a_buckets = numpy.zeros((len(planets), n_buckets))
-        for f in fleets:
-            d = math.log(f.remaining_turns) * 4
-            a_buckets[indices[f.destination], min(n_buckets-1, d)] += f.ships * (1 if f.owner == pid else -1)
+
+        # For each planet:
+        #   - Ship counts (3x)
+        #   - Growth (1x)
+        #   - Planet distances (N)
+        #   - Incoming buckets (k)
+        a_planets = numpy.zeros((len(planets), 3+1+len(planets)+n_buckets), dtype=numpy.float32)
+
+        for p in planets:
+            idx = indices[p.id]
+            
+            if p.owner == 0:   # NEUTRAL
+               a_planets[idx, 0] = 1+p.ships
+            if p.owner == pid: # FRIENDLY
+               a_planets[idx, 1] = 1+p.ships
+            if p.owner != pid: # ENEMY
+               a_planets[idx, 2] = 1+p.ships
+
+            # Ship creation per turn.
+            a_planets[idx, 3] = p.growth
+
+            # Distances from this planet.
+            for o in planets:
+                a_planets[idx, 4+indices[o.id]] = dist(p, o)
+
+            # Incoming ships bucketed by arrival time (logarithmic)
+            start = 4+len(planets)
+            for f in [f for f in fleets if f.destination == p.id]:
+                d = math.log(f.remaining_turns) * 4
+                a_planets[idx, start+min(n_buckets-1, d)] += f.ships * (1.0 if f.owner == pid else -1.0)
 
         # Full input matrix that combines each feature.
-        a_inputs = numpy.concatenate((a_ships.flatten(), a_growths, a_dists.flatten(), a_buckets.flatten()))
-        return a_inputs.astype(numpy.float32) / 1000.0
+        return a_planets.flatten() / 1000.0
