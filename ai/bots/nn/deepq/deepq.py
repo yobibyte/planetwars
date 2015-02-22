@@ -100,7 +100,7 @@ class DeepQ(object):
         self.n_actions = n_actions
         if not self.initialised:
             print 'S->A', state.shape, n_actions
-            sa = state.reshape(1, state.size)
+            sa = state.reshape(1, *state.shape)
             target = np.zeros((1, n_actions))
             self.network.linit(sa, target)
             self.initialised = True
