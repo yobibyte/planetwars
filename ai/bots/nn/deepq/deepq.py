@@ -151,7 +151,7 @@ class DeepQ(object):
 
     def train_qs(self, n_epochs, n_batch=5000):        
         if self.inputs is None:
-            self.inputs = np.zeros((n_batch, self.memory[0][0].size), dtype=np.float32)
+            self.inputs = np.zeros((n_batch,)+self.memory[0][0].shape, dtype=np.float32)
         if self.targets is None:
             self.targets = np.zeros((n_batch, self.n_actions), dtype=np.float32)
 
