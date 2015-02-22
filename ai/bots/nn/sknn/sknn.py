@@ -144,11 +144,22 @@ class sknn():
                 irange=lim)
             pylearn2mlp_layers += [output_layer]
 
+        #print X.shape[1:]
         input_space = Conv2DSpace(shape=X.shape[1:], num_channels=1)
+        #if(self.conv_input):
+        #    X = np.array([X]).transpose(0,2,3,1)
         self.mlp = mlp.MLP(pylearn2mlp_layers, input_space=input_space)
-        self.ds = DenseDesignMatrix(X=X, y=y)
+        #view = (100,X.shape[1:][0], X.shape[1:][1], 1)
+
+        self.view = input_space.get_origin_batch(100)
+        #print view.shape
+        #view = np.array(view)
+        #exit()
+        self.ds = DenseDesignMatrix(topo_view=self.view, y=y)
         self.trainer.setup(self.mlp, self.ds)
         inputs = self.mlp.get_input_space().make_theano_batch()
+        #print inputs
+        #exit()
         self.f = theano.function([inputs], self.mlp.fprop(inputs))
 
     def fit(self, X, y, epochs=100):
@@ -159,13 +170,19 @@ class sknn():
         """
         if(self.ds is None):
             self.linit(X, y)
-
         if(self.conv_input):
-            X = np.array([[X.T]]).T
+            X = np.array([X]).transpose(1,2,3,0)
+
+        #print X.shape
+        #exit()
         ds = self.ds
         X_s,y_s = self.__scale(X,y)
-        ds.X = X_s
+        #print X_s.shape
+        #ds.X
+        print "Training"
+        ds.X = ds.view_converter.topo_view_to_design_mat(X_s)
         ds.y = y_s
+
         for e in range(epochs):
             self.trainer.train(dataset=ds)
         return self
@@ -176,10 +193,18 @@ class sknn():
         :param X:
         :return:
         """
+
+        #(1, 897, 1, 1)
+        #print X.shape
+        if(self.conv_input):
+            X = np.array([X]).transpose(1,2,3,0)
+            #print X.shape
+            #exit()
+
         X_s,_ = self.__scale(X, None)
         y =  self.f(X_s)
         y_s = self.__original_y(y)
-
+        #print "suceffule prediciton", X.shape
         return y_s
 
 class IncrementalMinMaxScaler():

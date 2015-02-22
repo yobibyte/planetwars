@@ -35,7 +35,7 @@ class DeepNaN(object):
 
     def __init__(self):
         self.learning_rate = 0.00001
-        self.bot = DeepQ([("ConvRectifiedLinear", {"channels": 50, "kernel": (1,39)}),
+        self.bot = DeepQ([("ConvRectifiedLinear", {"channels": 50, "kernel": (3,3)}),
                           ("RectifiedLinear", 2000),
                           ("Linear", )],
                           dropout=False, learning_rate=self.learning_rate)
