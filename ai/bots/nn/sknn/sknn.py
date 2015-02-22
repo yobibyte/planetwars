@@ -10,7 +10,8 @@ from pylearn2.datasets import DenseDesignMatrix
 from pylearn2.training_algorithms import sgd, learning_rule
 from pylearn2.models import mlp, maxout
 from pylearn2.costs.mlp.dropout import Dropout
-
+from pylearn2.models.mlp import ConvRectifiedLinear
+from pylearn2.space import VectorSpace, CompositeSpace, Conv2DSpace
 
 
 class sknn():
@@ -110,10 +111,14 @@ class sknn():
                     num_pieces=layer[2],
                     layer_name=layer_name,
                     irange=lim)
-            elif activate_type == "Convolution":
-                hidden_layer = conv2d.Conv2D(
-                    
-                    )
+            elif activate_type == "ConvRectifiedLinear":
+               hidden_layer = ConvRectifiedLinear(
+                        layer_name= layer_name,
+                        kernel_shape= [5, 1],
+                        pool_shape=[1, 1],
+                        pool_stride= [1, 1],
+                        output_channels= 32,
+                        irange = 0.05)
             else:
                 raise NotImplementedError(
                     "Layer of type %s are not implemented yet" %
@@ -134,7 +139,9 @@ class sknn():
                 irange=lim)
             pylearn2mlp_layers += [output_layer]
 
-        self.mlp = mlp.MLP(pylearn2mlp_layers, nvis=self.units_per_layer[0])
+
+        input_space = Conv2DSpace (shape = [self.units_per_layer[0],1], num_channels= 1)
+        self.mlp = mlp.MLP(pylearn2mlp_layers, input_space=input_space)
         self.ds = DenseDesignMatrix(X=X, y=y)
         self.trainer.setup(self.mlp, self.ds)
         inputs = self.mlp.get_input_space().make_theano_batch()
