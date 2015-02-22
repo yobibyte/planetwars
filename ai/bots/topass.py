@@ -34,15 +34,14 @@ def split(index, stride):
 class DeepNaN(object):
 
     def __init__(self):
-        self.learning_rate = 0.00002
-        self.bot = DeepQ([ # ("RectifiedLinear", 3500),
-                           # ("RectifiedLinear", 3500),
-                          ("RectifiedLinear", 1500),
-                           # ("RectifiedLinear", 1500),
-                           # ("RectifiedLinear", 2000),
-                          ("RectifiedLinear", 1000),
+        self.learning_rate = 0.00001
+        self.bot = DeepQ([# ("RectifiedLinear", 4000),
+                          ("RectifiedLinear", 3500),
+                          ("RectifiedLinear", 3000),
+                          ("RectifiedLinear", 2500),
+                          ("RectifiedLinear", 2000),
                           ("Linear", )],
-                         dropout=True, learning_rate=self.learning_rate)
+                          dropout=False, learning_rate=self.learning_rate)
 
         try:
             self.bot.load()
@@ -62,10 +61,6 @@ class DeepNaN(object):
 
     def __call__(self, turn, pid, planets, fleets):
         if pid == 1:
-            # if self.games & 1 == 0:
-            #    self.bot.epsilon = 0.1
-            #    n_best = int(40.0 * self.epsilon)
-            #if self.games & 1 != 0:
             self.bot.epsilon = self.epsilon
         else:
             self.bot.epsilon = 1.0
@@ -76,11 +71,7 @@ class DeepNaN(object):
                     self.greedy = strong_to_close
                 if self.games & 2 != 0:
                     self.greedy = strong_to_weak
-                self.bot.epsilon = 0.0             
-
-            # One of the three opponents is a fully randomized bot.
-            # if self.games % 3 == 2:
-            #    self.bot.epsilon = 1.0
+                self.bot.epsilon = 0.0
 
         # Build the input matrix for data to feed into the DNN.
         a_inputs = self.createInputVector(pid, planets, fleets)
@@ -105,7 +96,7 @@ class DeepNaN(object):
     def done(self, turns, pid, planets, fleets, won):
         a_inputs = self.createInputVector(pid, planets, fleets)
         n_actions = len(planets) * ACTIONS + 1
-        score = (+1.0 - float(turns)/301.5) if won else (-1.0 + float(turns)/301.5)
+        score = +1.0 if won else -1.0
 
         self.bot.act_qs(a_inputs, score * SCALE, terminal=True, n_actions=n_actions,
                         q_filter=0.0, episode=pid)
@@ -113,85 +104,37 @@ class DeepNaN(object):
         if pid == 2:
             return
         
-        n_best = int(20.0 * self.epsilon)
         self.games += 1
         self.total_score += score
         self.winloss += int(won) * 2 - 1
 
-        # print '#', int(self.games), "(%i)" % len(self.bot.memory), self.total_score/self.games*2
+        n_batch = 200
+        self.bot.train_qs(n_epochs=1, n_batch=n_batch)
+        self.bot.memory = self.bot.memory[len(self.bot.memory)/250:]
+        if pid in self.turn_score:
+            del self.turn_score[pid]
+
         BATCH = 100
         if self.games % BATCH == 0:
 
             self.iterations += 1
-            n_batch = 5000
             print "\nIteration %i with ratio %+i as score %f." % (self.iterations, self.winloss, self.total_score / BATCH)
             print "  - memory %i, latest %i, batch %i" % (len(self.bot.memory), len(self.bot.memory)-self.bot.last_training, n_batch)
 
-            # if self.total_score < self.iteration_score.get(pid, -1.0):
-            #    self.learning_rate /= 2.0
-            #    self.bot.network.trainer.learning_rate.set_value(self.learning_rate)
-            #    print "  - adjusting learning rate to %f" % (self.learning_rate,)
-            # self.iteration_score[pid] = self.total_score
-            
-            self.bot.train_qs(n_epochs=4, n_batch=n_batch)
-
-            """
-            if len(self.bot.memory) > 1000000:                
-                self.bot.network.epsilon = 0.000000002
-                self.bot.train_qs(n_epochs=15, n_ratio=0.0, n_batch=n_batch)
-            elif len(self.bot.memory) > 500000:
-                self.bot.network.epsilon = 0.00000001
-                self.bot.train_qs(n_epochs=5, n_ratio=0.0, n_batch=n_batch)
-            elif len(self.bot.memory) > 250000:
-                self.bot.network.epsilon = 0.00000004
-                self.bot.train_qs(n_epochs=3, n_ratio=0.0, n_batch=n_batch)
-            elif len(self.bot.memory) > 100000:
-                self.bot.network.epsilon = 0.0000002
-                self.bot.train_qs(n_epochs=1, n_ratio=0.0, n_batch=n_batch)
-            """
-            self.bot.memory = self.bot.memory[len(self.bot.memory)/10:]
-
-            # TODO: Measure impact of decaying the learning vs. learning speed.
-            # if self.epsilon > 0.11:
-            #   self.epsilon -= 0.05
-            print "  - skills: top %i moves, or random %3.1f%%" % (n_best, self.epsilon * 100.0)
             self.winloss = 0
             self.total_score = 0.0
-            if pid in self.turn_score:
-                del self.turn_score[pid]
 
             self.bot.save()
         else:
             if turns >= 201:
-                if won:
-                    sys.stdout.write('o')
-                else:
-                    sys.stdout.write('.')
+                sys.stdout.write('o' if won else '.')
             else:
-                if won:
-                    sys.stdout.write('O')
-                else:
-                    sys.stdout.write('_')
+                sys.stdout.write('O' if won else '_')
 
     def createOutputVectors(self, pid, planets, fleets):        
-        indices = range(len(planets))
-        # random.shuffle(indices)
-
-        if pid == 2:
-            for i in range(1, len(planets), 2):
-                indices[i], indices[i+1] = indices[i+1], indices[i]
-                assert planets[i].growth == planets[i+1].growth
-
         # Global data used to create/filter possible actions.
         my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)        
         other_planets = their_planets + neutral_planets
-
-        order = None
-        if self.greedy:
-            g = self.greedy(0, pid, planets, fleets)
-            if len(g) > 0:
-                order = g[0]
-            self.greedy = None
 
         action_valid = [
             bool(neutral_planets),   # WEAKEST NEUTRAL
@@ -212,7 +155,7 @@ class DeepNaN(object):
         a_filter = numpy.zeros((n_actions,))
         for order_id in range(n_actions-1):
             src_id, act_id = split(order_id, ACTIONS)
-            src_id = indices[src_id]
+            src_id = self.indices[src_id]
             src = planets[src_id]
             if not action_valid[act_id] or src.owner != pid:
                 orders.append([])
@@ -241,59 +184,52 @@ class DeepNaN(object):
                 orders.append(None)
                 continue
 
-            if order is None:
-                orders.append([Order(src, dst, src.ships * 0.5)])
-                a_filter[order_id] = 1.0
-            else:
-                if order.source.id == src_id and order.destination.id == dst.id:
-                    orders.append([Order(src, dst, src.ships * 0.5)])
-                    a_filter[order_id] = 1.0
-                    order = None
-                else:
-                    orders.append(None)
+            orders.append([Order(src, dst, src.ships * 0.5)])
+            a_filter[order_id] = 1.0
 
         # NO-OP.
         a_filter[-1] = 1.0
         orders.append([])
 
-        assert order is None, "Neural network did not support the greedy order suggested."
+        del self.indices
         return orders, a_filter
-
+        
 
     def createInputVector(self, pid, planets, fleets):
-        indices = range(len(planets))
-        # random.shuffle(indices)
+        self.indices = range(len(planets))
+        # random.shuffle(self.indices)
 
-        if pid == 2:
-            for i in range(1, len(planets), 2):
-                indices[i], indices[i+1] = indices[i+1], indices[i]
-                assert planets[i].growth == planets[i+1].growth
-
-        # 1) Three layers of ship counters for each faction.
-        a_ships = numpy.zeros((len(planets), 3))
-        for p in planets:
-            if p.owner == 0:
-               a_ships[indices[p.id], 0] = 1+p.ships
-            if p.owner == pid:
-               a_ships[indices[p.id], 1] = 1+p.ships
-            if p.owner != pid:
-               a_ships[indices[p.id], 2] = 1+p.ships               
-
-        # 2) Growth rate for all planets.
-        a_growths = numpy.array([planets[i].growth for i in indices])
-
-        # 3) Distance matrix for planet pairs.
-        a_dists = numpy.zeros((len(planets), len(planets)))
-        for A, B in itertools.product(planets, planets):
-            a_dists[indices[A.id], indices[B.id]] = dist(A, B)
-
-        # 4) Incoming ships bucketed by arrival time (logarithmic)
         n_buckets = 12
-        a_buckets = numpy.zeros((len(planets), n_buckets))
-        for f in fleets:
-            d = math.log(f.remaining_turns) * 4
-            a_buckets[indices[f.destination], min(n_buckets-1, d)] += f.ships * (1 if f.owner == pid else -1)
+
+        # For each planet:
+        #   - Ship counts (3x)
+        #   - Growth (1x)
+        #   - Planet distances (N)
+        #   - Incoming buckets (k)
+        a_planets = numpy.zeros((len(planets), 3+1+len(planets)+n_buckets), dtype=numpy.float32)
+
+        for p in planets:
+            idx = self.indices[p.id]
+            
+            if p.owner == 0:   # NEUTRAL
+               a_planets[idx, 0] = 1+p.ships
+            if p.owner == pid: # FRIENDLY
+               a_planets[idx, 1] = 1+p.ships
+            if p.owner != pid: # ENEMY
+               a_planets[idx, 2] = 1+p.ships
+
+            # Ship creation per turn.
+            a_planets[idx, 3] = p.growth
+
+            # Distances from this planet.
+            for o in planets:
+                a_planets[idx, 4+self.indices[o.id]] = dist(p, o)
+
+            # Incoming ships bucketed by arrival time (logarithmic)
+            start = 4+len(planets)
+            for f in [f for f in fleets if f.destination == p.id]:
+                d = math.log(f.remaining_turns) * 4
+                a_planets[idx, start+min(n_buckets-1, d)] += f.ships * (1.0 if f.owner == pid else -1.0)
 
         # Full input matrix that combines each feature.
-        a_inputs = numpy.concatenate((a_ships.flatten(), a_growths, a_dists.flatten(), a_buckets.flatten()))
-        return a_inputs.astype(numpy.float32) / 1000.0
+        return a_planets.flatten() / 1000.0
