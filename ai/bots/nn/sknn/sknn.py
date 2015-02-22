@@ -176,8 +176,6 @@ class sknn():
         :param X:
         :return:
         """
-        if(self.conv_input):
-            X = np.array([[X.T]]).T
         X_s,_ = self.__scale(X, None)
         y =  self.f(X_s)
         y_s = self.__original_y(y)
