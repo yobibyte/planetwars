@@ -144,7 +144,7 @@ class sknn():
                 irange=lim)
             pylearn2mlp_layers += [output_layer]
 
-        input_space = Conv2DSpace(shape=X.shape, num_channels=1)
+        input_space = Conv2DSpace(shape=X.shape[1:], num_channels=1)
         self.mlp = mlp.MLP(pylearn2mlp_layers, input_space=input_space)
         self.ds = DenseDesignMatrix(X=X, y=y)
         self.trainer.setup(self.mlp, self.ds)
