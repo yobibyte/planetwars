@@ -37,7 +37,7 @@ class sknn():
         cost = Dropout() if dropout else None
         self.trainer = sgd.SGD(
             learning_rate=learning_rate,
-            learning_rule=learning_rule.RMSProp(),
+            # learning_rule=learning_rule.RMSProp(),
             cost=cost, batch_size=100)
 
         self.input_normaliser = input_scaler

@@ -50,8 +50,8 @@ def main(argv):
         state = State()
         state.random_setup(arguments.p1num, arguments.p2num, arguments.nnum)
         game = PlanetWars(remaining[:2], planets=state.planets, fleets=state.fleets, collisions=arguments.collisions)
-      else:
-        game = PlanetWars(remaining[:2], map_name="map%i" % random.choice([28, 32, 11, 15, 17, 19, 25, 37, 43, 45]), collisions=arguments.collisions)
+      else: # [32, 11, 15, 17, 19, 25, 37, 43, 45]
+        game = PlanetWars(remaining[:2], map_name="map%i" % random.choice([28]), collisions=arguments.collisions)
       winner, ship_counts = game.play()
       # print "game ", i, " winner = ", winner
       sums [winner] += 1

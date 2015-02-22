@@ -31,7 +31,7 @@ def strong_to_close(turn, pid, planets, fleets):
 
 @planetwars_ai("StrongToBest")
 def strong_to_best(turn, pid, planets, fleets):
-    if random.random() > 0.9:
+    if random.random() > 0.34:
         return random_ai(turn, pid, planets, fleets)
 
     my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)

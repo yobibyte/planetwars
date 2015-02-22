@@ -34,10 +34,12 @@ def split(index, stride):
 class DeepNaN(object):
 
     def __init__(self):
-        self.learning_rate = 0.0001
-        self.bot = DeepQ([("RectifiedLinear", 2500),
-                          ("RectifiedLinear", 1500),
-                          ("RectifiedLinear", 1000),
+        self.learning_rate = 0.00001
+        self.bot = DeepQ([# ("RectifiedLinear", 4000),
+                          ("RectifiedLinear", 3500),
+                          ("RectifiedLinear", 3000),
+                          ("RectifiedLinear", 2500),
+                          ("RectifiedLinear", 2000),
                           ("Linear", )],
                           dropout=False, learning_rate=self.learning_rate)
 
@@ -59,10 +61,6 @@ class DeepNaN(object):
 
     def __call__(self, turn, pid, planets, fleets):
         if pid == 1:
-            # if self.games & 1 == 0:
-            #    self.bot.epsilon = 0.1
-            #    n_best = int(40.0 * self.epsilon)
-            #if self.games & 1 != 0:
             self.bot.epsilon = self.epsilon
         else:
             self.bot.epsilon = 1.0
@@ -73,11 +71,7 @@ class DeepNaN(object):
                     self.greedy = strong_to_close
                 if self.games & 2 != 0:
                     self.greedy = strong_to_weak
-                self.bot.epsilon = 0.0             
-
-            # One of the three opponents is a fully randomized bot.
-            # if self.games % 3 == 2:
-            #    self.bot.epsilon = 1.0
+                self.bot.epsilon = 0.0
 
         # Build the input matrix for data to feed into the DNN.
         a_inputs = self.createInputVector(pid, planets, fleets)
@@ -110,7 +104,6 @@ class DeepNaN(object):
         if pid == 2:
             return
         
-        n_best = int(20.0 * self.epsilon)
         self.games += 1
         self.total_score += score
         self.winloss += int(won) * 2 - 1
@@ -127,7 +120,6 @@ class DeepNaN(object):
             self.iterations += 1
             print "\nIteration %i with ratio %+i as score %f." % (self.iterations, self.winloss, self.total_score / BATCH)
             print "  - memory %i, latest %i, batch %i" % (len(self.bot.memory), len(self.bot.memory)-self.bot.last_training, n_batch)
-            print "  - skills: top %i moves, or random %3.1f%%" % (n_best, self.epsilon * 100.0)
 
             self.winloss = 0
             self.total_score = 0.0
@@ -135,19 +127,11 @@ class DeepNaN(object):
             self.bot.save()
         else:
             if turns >= 201:
-                if won:
-                    sys.stdout.write('o')
-                else:
-                    sys.stdout.write('.')
+                sys.stdout.write('o' if won else '.')
             else:
-                if won:
-                    sys.stdout.write('O')
-                else:
-                    sys.stdout.write('_')
+                sys.stdout.write('O' if won else '_')
 
     def createOutputVectors(self, pid, planets, fleets):        
-        indices = range(len(planets))
-
         # Global data used to create/filter possible actions.
         my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)        
         other_planets = their_planets + neutral_planets
@@ -171,7 +155,7 @@ class DeepNaN(object):
         a_filter = numpy.zeros((n_actions,))
         for order_id in range(n_actions-1):
             src_id, act_id = split(order_id, ACTIONS)
-            src_id = indices[src_id]
+            src_id = self.indices[src_id]
             src = planets[src_id]
             if not action_valid[act_id] or src.owner != pid:
                 orders.append([])
@@ -207,11 +191,14 @@ class DeepNaN(object):
         a_filter[-1] = 1.0
         orders.append([])
 
+        del self.indices
         return orders, a_filter
-
+        
 
     def createInputVector(self, pid, planets, fleets):
-        indices = range(len(planets))
+        self.indices = range(len(planets))
+        # random.shuffle(self.indices)
+
         n_buckets = 12
 
         # For each planet:
@@ -222,7 +209,7 @@ class DeepNaN(object):
         a_planets = numpy.zeros((len(planets), 3+1+len(planets)+n_buckets), dtype=numpy.float32)
 
         for p in planets:
-            idx = indices[p.id]
+            idx = self.indices[p.id]
             
             if p.owner == 0:   # NEUTRAL
                a_planets[idx, 0] = 1+p.ships
@@ -236,7 +223,7 @@ class DeepNaN(object):
 
             # Distances from this planet.
             for o in planets:
-                a_planets[idx, 4+indices[o.id]] = dist(p, o)
+                a_planets[idx, 4+self.indices[o.id]] = dist(p, o)
 
             # Incoming ships bucketed by arrival time (logarithmic)
             start = 4+len(planets)
