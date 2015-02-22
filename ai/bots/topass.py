@@ -35,10 +35,7 @@ class DeepNaN(object):
 
     def __init__(self):
         self.learning_rate = 0.00001
-        self.bot = DeepQ([# ("RectifiedLinear", 4000),
-                          ("RectifiedLinear", 3500),
-                          ("RectifiedLinear", 3000),
-                          ("RectifiedLinear", 2500),
+        self.bot = DeepQ([("ConvRectifiedLinear", {"channels": 50, "kernel": (1,39)}),
                           ("RectifiedLinear", 2000),
                           ("Linear", )],
                           dropout=False, learning_rate=self.learning_rate)
@@ -232,4 +229,4 @@ class DeepNaN(object):
                 a_planets[idx, start+min(n_buckets-1, d)] += f.ships * (1.0 if f.owner == pid else -1.0)
 
         # Full input matrix that combines each feature.
-        return a_planets.flatten() / 1000.0
+        return a_planets / 1000.0

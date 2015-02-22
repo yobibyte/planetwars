@@ -43,6 +43,7 @@ class sknn():
 
         self.input_normaliser = input_scaler
         self.output_normaliser = output_scaler
+        self.conv_input = False
 
 
     def __scale(self,X,y):
@@ -85,9 +86,12 @@ class sknn():
 
         for i, layer in enumerate(layers[:-1]):
 
-            fan_in = self.units_per_layer[i] + 1
-            fan_out = self.units_per_layer[i+1]
-            lim = np.sqrt(6) / (np.sqrt(fan_in + fan_out))
+            try:
+                fan_in = self.units_per_layer[i] + 1
+                fan_out = self.units_per_layer[i+1]
+                lim = np.sqrt(6) / (np.sqrt(fan_in + fan_out))
+            except:
+                lim = 0.05
             layer_name = "Hidden_%i_%s"%(i,layer[0])
             activate_type = layer[0]
             if activate_type == "RectifiedLinear":
@@ -113,12 +117,13 @@ class sknn():
                     irange=lim)
             elif activate_type == "ConvRectifiedLinear":
                hidden_layer = ConvRectifiedLinear(
-                        layer_name= layer_name,
-                        kernel_shape= [5, 1],
+                        layer_name=layer_name,
+                        kernel_shape=layer[1]['kernel'],
                         pool_shape=[1, 1],
                         pool_stride= [1, 1],
-                        output_channels= 32,
-                        irange = 0.05)
+                        output_channels=layer[1]['channels'],
+                        irange=lim)
+               self.conv_input = True
             else:
                 raise NotImplementedError(
                     "Layer of type %s are not implemented yet" %
@@ -139,8 +144,7 @@ class sknn():
                 irange=lim)
             pylearn2mlp_layers += [output_layer]
 
-
-        input_space = Conv2DSpace (shape = [self.units_per_layer[0],1], num_channels= 1)
+        input_space = Conv2DSpace(shape=X.shape, num_channels=1)
         self.mlp = mlp.MLP(pylearn2mlp_layers, input_space=input_space)
         self.ds = DenseDesignMatrix(X=X, y=y)
         self.trainer.setup(self.mlp, self.ds)
@@ -156,6 +160,8 @@ class sknn():
         if(self.ds is None):
             self.linit(X, y)
 
+        if(self.conv_input):
+            X = np.array([[X.T]]).T
         ds = self.ds
         X_s,y_s = self.__scale(X,y)
         ds.X = X_s
@@ -170,6 +176,8 @@ class sknn():
         :param X:
         :return:
         """
+        if(self.conv_input):
+            X = np.array([[X.T]]).T
         X_s,_ = self.__scale(X, None)
         y =  self.f(X_s)
         y_s = self.__original_y(y)
