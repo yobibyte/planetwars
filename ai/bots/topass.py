@@ -39,7 +39,7 @@ class DeepNaN(object):
                            # ("RectifiedLinear", 3500),
                           #("RectifiedLinear", 2500),
                           #("RectifiedLinear", 2500),
-                          # ("RectifiedLinear", 2000),
+                          ("ConvRectifiedLinear", 50),
                           ("RectifiedLinear", 2000),
                           ("Linear", )],
                          dropout=True, learning_rate=self.learning_rate)
@@ -131,7 +131,8 @@ class DeepNaN(object):
         self.winloss/=10.0
 
         # print '#', int(self.games), "(%i)" % len(self.bot.memory), self.total_score/self.games*2
-        BATCH = 100
+        BATCH = 2
+        print "sdflajsdfj"
         if self.games % BATCH == 0:
 
             if self.total_score < self.iteration_score.get(pid, -1.0):
