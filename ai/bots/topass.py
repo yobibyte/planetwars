@@ -34,9 +34,12 @@ def split(index, stride):
 class DeepNaN(object):
 
     def __init__(self):
-        self.learning_rate = 0.00001
-        self.bot = DeepQ([("ConvRectifiedLinear", {"channels": 50, "kernel": (3,3)}),
-                          ("RectifiedLinear", 2000),
+        self.learning_rate = 0.000002
+        self.bot = DeepQ([("ConvRectifiedLinear", {"channels": 50, "kernel": (1,39)}),
+                          ("RectifiedLinear", 3500),
+                          ("RectifiedLinear", 3000),
+                          ("RectifiedLinear", 2500),
+                          ("RectifiedLinear", 2500),
                           ("Linear", )],
                           dropout=False, learning_rate=self.learning_rate)
 

@@ -179,7 +179,7 @@ class sknn():
         X_s,y_s = self.__scale(X,y)
         #print X_s.shape
         #ds.X
-        print "Training"
+        # print "Training"
         ds.X = ds.view_converter.topo_view_to_design_mat(X_s)
         ds.y = y_s
 
