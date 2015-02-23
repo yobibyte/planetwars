@@ -4,16 +4,16 @@ from .. import planetwars_class
 from planetwars.datatypes import Order
 from planetwars.utils import *
 
-from .sample import all_to_close_or_weak
+from .sample import all_to_close_or_weak, strong_to_weak
 
 @planetwars_class
 class Stochastic(object):
 
-    EPSILON = 0.75
+    EPSILON = 1.0
 
     def __call__(self, turn, pid, planets, fleets):
-        if random.random() < Stochastic.EPSILON:
-            return all_to_close_or_weak(turn, pid, planets, fleets)
+        # if random.random() < Stochastic.EPSILON:
+        #    return strong_to_weak(turn, pid, planets, fleets)
 
         def mine(x):
             return x.owner == pid
@@ -23,7 +23,10 @@ class Stochastic(object):
           return []
 
         source = random.choice(my_planets)
-        destination = random.choice(other_planets)
+        if random.random() > Stochastic.EPSILON:
+            destination = random.choice(other_planets)
+        else:
+            destination = random.choice(planets)
         return [Order(source, destination, source.ships / 2)]
 
     def done(self, *args):

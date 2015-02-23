@@ -34,12 +34,14 @@ def split(index, stride):
 class DeepNaN(object):
 
     def __init__(self):
-        self.learning_rate = 0.000002
-        self.bot = DeepQ([("ConvRectifiedLinear", {"channels": 50, "kernel": (1,39)}),
-                          ("RectifiedLinear", 3500),
+        self.learning_rate = 0.00001
+        self.bot = DeepQ([("ConvRectifiedLinear", {"channels": 100, "kernel": (1,39)}),
+                          # ("RectifiedLinear", 3500),
+                          # ("RectifiedLinear", 3000),
+                          # ("RectifiedLinear", 2500),
                           ("RectifiedLinear", 3000),
-                          ("RectifiedLinear", 2500),
-                          ("RectifiedLinear", 2500),
+                          ("RectifiedLinear", 3000),
+                          ("RectifiedLinear", 3000),
                           ("Linear", )],
                           dropout=False, learning_rate=self.learning_rate)
 
@@ -60,30 +62,15 @@ class DeepNaN(object):
         self.iterations = 0
 
     def __call__(self, turn, pid, planets, fleets):
-        if pid == 1:
-            self.bot.epsilon = self.epsilon
-        else:
-            self.bot.epsilon = 1.0
-
-            # Hard-coded opponent bots use greedy policy (1-2*epsilon) of the time.
-            if random.random() > self.epsilon * 2:
-                if self.games & 2 == 0:
-                    self.greedy = strong_to_close
-                if self.games & 2 != 0:
-                    self.greedy = strong_to_weak
-                self.bot.epsilon = 0.0
+        if pid == 2:
+            if self.games % 2 == 0:
+                return strong_to_weak(turn, pid, planets, fleets)
 
         # Build the input matrix for data to feed into the DNN.
         a_inputs = self.createInputVector(pid, planets, fleets)
         orders, a_filter = self.createOutputVectors(pid, planets, fleets)
 
-        # Reward calculated from the action in previous timestep.
-        # score = sum([p.growth for p in planets if p.id == pid])
-        # reward = (score - self.turn_score.get(pid, 0)) / 20.0
-        # self.turn_score[pid] = score
-        reward = 0.0
-
-        order_id = self.bot.act_qs(a_inputs, reward * SCALE, episode=pid, terminal=False,
+        order_id = self.bot.act_qs(a_inputs, reward=0.0, episode=pid, terminal=False,
                                    q_filter=a_filter, n_actions=len(orders))
 
         if order_id is None or a_filter[order_id] <= 0.0:
@@ -95,20 +82,21 @@ class DeepNaN(object):
 
     def done(self, turns, pid, planets, fleets, won):
         a_inputs = self.createInputVector(pid, planets, fleets)
-        n_actions = len(planets) * ACTIONS + 1
+        orders, a_filter = self.createOutputVectors(pid, planets, fleets)
         score = +1.0 if won else -1.0
 
-        self.bot.act_qs(a_inputs, score * SCALE, terminal=True, n_actions=n_actions,
+        self.bot.act_qs(a_inputs, score * SCALE, terminal=True, n_actions=len(orders),
                         q_filter=0.0, episode=pid)
 
         if pid == 2:
             return
         
+        if self.games % 2 == 0:            
+            self.total_score += score
+            self.winloss += (1 if won else -1) * (2 if turns < 201 else 1)
         self.games += 1
-        self.total_score += score
-        self.winloss += int(won) * 2 - 1
 
-        n_batch = 200
+        n_batch = 400
         self.bot.train_qs(n_epochs=1, n_batch=n_batch)
         self.bot.memory = self.bot.memory[len(self.bot.memory)/250:]
         if pid in self.turn_score:
@@ -131,7 +119,10 @@ class DeepNaN(object):
             else:
                 sys.stdout.write('O' if won else '_')
 
-    def createOutputVectors(self, pid, planets, fleets):        
+    """
+    # SIMPLIFIED ACTION SPACE
+    #
+    def _createOutputVectors(self, pid, planets, fleets):        
         # Global data used to create/filter possible actions.
         my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)        
         other_planets = their_planets + neutral_planets
@@ -193,11 +184,36 @@ class DeepNaN(object):
 
         del self.indices
         return orders, a_filter
-        
+    """
+
+    def createOutputVectors(self, pid, planets, fleets):
+        orders = []
+        n_actions = len(planets) * len(planets)
+        a_filter = numpy.zeros((n_actions,))
+
+        for i, (src_id, dst_id) in enumerate(itertools.product(self.indices, repeat=2)):
+            src = planets[src_id]
+            if src.owner != pid:
+                orders.append(None)
+                continue
+
+            a_filter[i] = 1.0
+            if src_id == dst_id: # NOP
+                orders.append([])
+            else:
+                orders.append([Order(src, planets[dst_id], src.ships * 0.5)])
+
+        del self.indices
+        return orders, a_filter
 
     def createInputVector(self, pid, planets, fleets):
         self.indices = range(len(planets))
         # random.shuffle(self.indices)
+
+        if pid == 2:
+            for i in range(1,len(planets),2):
+                self.indices[i], self.indices[i+1] = self.indices[i+1], self.indices[i]
+                assert planets[self.indices[i]].growth == planets[self.indices[i+1]].growth
 
         n_buckets = 12
 
