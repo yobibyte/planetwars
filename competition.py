@@ -10,7 +10,7 @@ def main(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument('--collisions', action='store_true', required=False, default=False,
                         help="Should the ships collide with each other?")
-    parser.add_argument('--games', type=int, required=False, default=1000,
+    parser.add_argument('--games', type=int, required=False, default=1000000,
                         help="Number of turns per second run by the game.")
     parser.add_argument('--seed', type=int, required=False, default=0,
                         help="Initial rng seed, 0 = system-based")

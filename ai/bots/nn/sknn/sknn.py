@@ -11,6 +11,7 @@ from pylearn2.training_algorithms import sgd
 from pylearn2.models import mlp, maxout
 from pylearn2.costs.mlp.dropout import Dropout
 from pylearn2.training_algorithms.learning_rule import AdaGrad, RMSProp, AdaDelta
+from cma import CMAEvolutionStrategy as cma
 
 
 class sknn():
@@ -127,19 +128,54 @@ class sknn():
         lim = np.sqrt(6) / (np.sqrt(fan_in + fan_out))
 
         if(output_layer_info[0] == "Linear"):
+
+
             output_layer = mlp.Linear(
                 dim=self.units_per_layer[-1],
                 layer_name=output_layer_name,
                 irange=lim)
             pylearn2mlp_layers += [output_layer]
 
+        total_weights = 0
+
         self.mlp = mlp.MLP(pylearn2mlp_layers, nvis=self.units_per_layer[0])
+
+
+        for layer in self.mlp.layers:
+            total_weights += layer.get_weights().size
+        inopts = {}
+        inopts["CMA_diagonal"] = True
+        inopts["pop"] = 100
+
+        self.cma = cma(np.zeros(total_weights), sigma0= 0.1, inopts = inopts)
+        self.asked = self.cma.ask()
+        self.tell = []
+
+        self.asked_position = 0
+        self.genomeToMlp()
+
+
+
+
+        #exit()
+
         self.ds = DenseDesignMatrix(X=X, y=y)
         self.trainer.setup(self.mlp, self.ds)
         inputs = self.mlp.get_input_space().make_theano_batch()
         self.f = theano.function([inputs], self.mlp.fprop(inputs))
 
-    def fit(self, X, y, epochs=100):
+    def genomeToMlp(self):
+        last_size = 0
+        for layer in self.mlp.layers:
+            weights = layer.get_weights()
+            cma_weights = self.asked[self.asked_position][last_size:last_size+ weights.size]
+            last_size = weights.size
+            layer.set_weights(cma_weights.reshape(weights.shape))
+
+
+
+    #@profile
+    def fit(self, X, y, score, epochs=100):
         """
         :param X: Training data
         :param y:
@@ -148,13 +184,30 @@ class sknn():
         if(self.ds is None):
             self.linit(X, y)
 
-        ds = self.ds
-        X_s,y_s = self.__scale(X,y)
-        ds.X = X_s
-        ds.y = y_s
-        for e in range(epochs):
-            self.trainer.train(dataset=ds)
-        return self
+        self.tell.append(-score)
+
+        if(len(self.tell) == len(self.asked)):
+            self.cma.tell(self.asked, self.tell)
+            self.asked_position = 0
+            self.asked = self.cma.ask()
+            self.tell = []
+
+        else:
+            self.asked_position+=1
+
+
+        self.genomeToMlp()
+
+
+
+
+        # ds = self.ds
+        # X_s,y_s = self.__scale(X,y)
+        # ds.X = X_s
+        # ds.y = y_s
+        # for e in range(epochs):
+        #     self.trainer.train(dataset=ds)
+        # return self
 
     def predict(self, X):
         """

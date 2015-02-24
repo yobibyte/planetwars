@@ -180,10 +180,10 @@ class DeepQ(object):
                 # renormalize the reward to closer to what it should be now.                
                 r = max(-1.0, min(+1.0, reward * (o / p)))
                 """
-
+                #print reward
                 self.targets[i] = original[i] * (1.0 - mask) + reward * mask
 
-            self.network.fit(self.inputs, self.targets, epochs=1)
+            self.network.fit(self.inputs, self.targets, score= reward, epochs=1)
             predicted = self.network.predict(self.inputs)
 
             error = []

@@ -39,8 +39,8 @@ class DeepNaN(object):
                            # ("RectifiedLinear", 3500),
                           #("RectifiedLinear", 1500),
                            # ("RectifiedLinear", 1500),
-                           # ("RectifiedLinear", 2000),
-                          ("RectifiedLinear", 2000),
+                           #("RectifiedLinear", 200),
+                          ("RectifiedLinear", 200),
                           ("Linear", )],
                          dropout=False, learning_rate=self.learning_rate)
 
@@ -60,6 +60,7 @@ class DeepNaN(object):
         self.greedy = None
         self.iterations = 0
         self.previous = -1
+
 
     def __call__(self, turn, pid, planets, fleets):
         if pid == 1:
@@ -163,7 +164,7 @@ class DeepNaN(object):
             if pid in self.turn_score:
                 del self.turn_score[pid]
 
-            self.bot.save()
+            #self.bot.save()
 
         self.previous = score
 
@@ -295,9 +296,9 @@ class DeepNaN(object):
         a_growths = numpy.array([planets[i].growth for i in indices])
 
         # 3) Distance matrix for planet pairs.
-        a_dists = numpy.zeros((len(planets), len(planets)))
-        for A, B in itertools.product(planets, planets):
-            a_dists[indices[A.id], indices[B.id]] = dist(A, B)
+        #a_dists = numpy.zeros((len(planets), len(planets)))
+        #for A, B in itertools.product(planets, planets):
+          #  a_dists[indices[A.id], indices[B.id]] = dist(A, B)
 
         # 4) Incoming ships bucketed by arrival time (logarithmic)
         n_buckets = 12
@@ -307,5 +308,5 @@ class DeepNaN(object):
             a_buckets[indices[f.destination], min(n_buckets-1, d)] += f.ships * (1 if f.owner == pid else -1)
 
         # Full input matrix that combines each feature.
-        a_inputs = numpy.concatenate((a_ships.flatten(), a_growths, a_dists.flatten(), a_buckets.flatten()))
+        a_inputs = numpy.concatenate((a_ships.flatten(), a_growths, a_buckets.flatten()))
         return a_inputs.astype(numpy.float32) / 1000.0
