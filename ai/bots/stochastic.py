@@ -15,10 +15,7 @@ class Stochastic(object):
         # if random.random() < Stochastic.EPSILON:
         #    return strong_to_weak(turn, pid, planets, fleets)
 
-        def mine(x):
-            return x.owner == pid
-
-        my_planets, other_planets = partition(mine, planets)
+        my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
         if len(my_planets) == 0 or len(other_planets) == 0:
           return []
 
@@ -27,7 +24,7 @@ class Stochastic(object):
             destination = random.choice(other_planets)
         else:
             destination = random.choice(planets)
-        return [Order(source, destination, source.ships / 2)]
+        return [Order(source, destination, source.ships * 0.5)]
 
     def done(self, *args):
         pass

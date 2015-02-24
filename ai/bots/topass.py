@@ -33,17 +33,16 @@ def split(index, stride):
 @planetwars_class
 class DeepNaN(object):
 
+    # 16x100 for 5 planets
+    # 16x250 for 7 planets
+
     def __init__(self):
-        self.learning_rate = 0.00001
-        self.bot = DeepQ([("ConvRectifiedLinear", {"channels": 100, "kernel": (1,39)}),
-                          # ("RectifiedLinear", 3500),
-                          # ("RectifiedLinear", 3000),
-                          # ("RectifiedLinear", 2500),
-                          ("RectifiedLinear", 3000),
-                          ("RectifiedLinear", 3000),
-                          ("RectifiedLinear", 3000),
-                          ("Linear", )],
-                          dropout=False, learning_rate=self.learning_rate)
+        self.learning_rate = 0.0000000001
+        self.bot = DeepQ([
+                # ("ConvRectifiedLinear", {"channels": 16, "kernel": (1,16)}),
+                # ("RectifiedLinear", 1000),
+                ("Linear", )],
+                dropout=False, learning_rate=self.learning_rate)
 
         try:
             self.bot.load()
@@ -57,7 +56,7 @@ class DeepNaN(object):
         self.games = 0
         self.winloss = 0
         self.total_score = 0.0
-        self.epsilon = 0.20001
+        self.epsilon = 0.10001
         self.greedy = None
         self.iterations = 0
 
@@ -70,6 +69,13 @@ class DeepNaN(object):
         a_inputs = self.createInputVector(pid, planets, fleets)
         orders, a_filter = self.createOutputVectors(pid, planets, fleets)
 
+        """
+        # Reward calculated from the action in previous timestep.
+        score = sum([p.growth for p in planets if p.id == pid])
+        reward = (score - self.turn_score.get(pid, 0)) / 10.0
+        self.turn_score[pid] = score
+        """
+
         order_id = self.bot.act_qs(a_inputs, reward=0.0, episode=pid, terminal=False,
                                    q_filter=a_filter, n_actions=len(orders))
 
@@ -81,33 +87,64 @@ class DeepNaN(object):
         return o
 
     def done(self, turns, pid, planets, fleets, won):
+        from collections import defaultdict
+        score = defaultdict(int)
+        for p in planets:
+            score[p.owner] += p.ships
+        for f in fleets:
+            score[f.owner] += f.ships
+
+        if won:
+            assert score[pid] >= score[3-pid]
+        else:
+            assert score[pid] <= score[3-pid]
+
         a_inputs = self.createInputVector(pid, planets, fleets)
         orders, a_filter = self.createOutputVectors(pid, planets, fleets)
         score = +1.0 if won else -1.0
 
         self.bot.act_qs(a_inputs, score * SCALE, terminal=True, n_actions=len(orders),
                         q_filter=0.0, episode=pid)
+        if pid in self.turn_score:
+            del self.turn_score[pid]
 
         if pid == 2:
             return
         
-        if self.games % 2 == 0:            
-            self.total_score += score
-            self.winloss += (1 if won else -1) * (2 if turns < 201 else 1)
+        # if self.games % 2 == 0:
+        self.total_score += score
+        self.winloss += (1 if won else -1) * (2 if turns < 201 else 1)
         self.games += 1
 
-        n_batch = 400
+        print >>sys.stderr, (1.0 if won else -1.0) * (1.0 if turns < 201 else 0.5)
+
+        n_batch = 1000
         self.bot.train_qs(n_epochs=1, n_batch=n_batch)
+
+        """
+        positive = [(s, a, p, r) for (s, a, p, r) in self.bot.memory if r >= 0.0]
+        negative = [(s, a, p, r) for (s, a, p, r) in self.bot.memory if r < 0.0]
+        if len(negative) > len(positive):
+            negative = negative[len(negative)/250:]
+        else:
+            positive = positive[len(positive)/250:]
+        self.bot.memory = negative + positive
+        random.shuffle(self.bot.memory)
+        """
         self.bot.memory = self.bot.memory[len(self.bot.memory)/250:]
-        if pid in self.turn_score:
-            del self.turn_score[pid]
 
         BATCH = 100
         if self.games % BATCH == 0:
 
             self.iterations += 1
             print "\nIteration %i with ratio %+i as score %f." % (self.iterations, self.winloss, self.total_score / BATCH)
-            print "  - memory %i, latest %i, batch %i" % (len(self.bot.memory), len(self.bot.memory)-self.bot.last_training, n_batch)
+            positive = [(s, a, p, r) for (s, a, p, r) in self.bot.memory if r > 0.0]
+            negative = [(s, a, p, r) for (s, a, p, r) in self.bot.memory if r < 0.0]
+            print "  - memory %i, positive %i, negative %i" % (len(self.bot.memory), len(positive), len(negative))
+
+            if self.iterations % 50 == 0:
+                n_batch = 1000
+                self.bot.train_qs(n_epochs=1000, n_batch=n_batch)
 
             self.winloss = 0
             self.total_score = 0.0
@@ -222,7 +259,9 @@ class DeepNaN(object):
         #   - Growth (1x)
         #   - Planet distances (N)
         #   - Incoming buckets (k)
-        a_planets = numpy.zeros((len(planets), 3+1+len(planets)+n_buckets), dtype=numpy.float32)
+
+        # +len(planets)
+        a_planets = numpy.zeros((len(planets), 3+1+n_buckets), dtype=numpy.float32)
 
         for p in planets:
             idx = self.indices[p.id]
@@ -237,15 +276,16 @@ class DeepNaN(object):
             # Ship creation per turn.
             a_planets[idx, 3] = p.growth
 
-            # Distances from this planet.
-            for o in planets:
-                a_planets[idx, 4+self.indices[o.id]] = dist(p, o)
-
             # Incoming ships bucketed by arrival time (logarithmic)
-            start = 4+len(planets)
+            start = 4
             for f in [f for f in fleets if f.destination == p.id]:
                 d = math.log(f.remaining_turns) * 4
                 a_planets[idx, start+min(n_buckets-1, d)] += f.ships * (1.0 if f.owner == pid else -1.0)
 
+            # Distances from this planet.
+            # start = 4+n_buckets
+            # for o in planets:
+            #    a_planets[idx, 4+self.indices[o.id]] = dist(p, o)
+
         # Full input matrix that combines each feature.
-        return a_planets / 1000.0
+        return a_planets.flatten() / 1000.0

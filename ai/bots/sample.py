@@ -6,7 +6,7 @@ from planetwars.utils import *
 
 @planetwars_ai("StrongToWeak")
 def strong_to_weak(turn, pid, planets, fleets):
-    if random.random() > 0.5:
+    if random.random() > 0.25:
         return random_ai(turn, pid, planets, fleets)
 
     my_planets, their_planets, _ = aggro_partition(pid, planets)
@@ -31,7 +31,7 @@ def strong_to_close(turn, pid, planets, fleets):
 
 @planetwars_ai("StrongToBest")
 def strong_to_best(turn, pid, planets, fleets):
-    if random.random() > 0.34:
+    if random.random() > 0.67:
         return random_ai(turn, pid, planets, fleets)
 
     my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)

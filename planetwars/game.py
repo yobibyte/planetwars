@@ -28,14 +28,12 @@ class PlanetWars:
             self.planets = [Planet(*planet) for planet in planets]
             self.fleets = [Fleet(*fleet) for fleet in fleets]
 
-            """
             # [alexjc] Adding a random planet owned by each player.
             index = 1+(random.randint(0,len(self.planets)-2) & 30)
             owner = random.choice([0,1])
             self.planets[index].owner = 1 + owner
             self.planets[index+1].owner = 2 - owner
             assert self.planets[index].ships == self.planets[index+1].ships
-            """
         else:
             assert planets is not None, "Please specify planets since map_name is None."
             assert fleets is not None, "Please specify fleets since map_name is None."
