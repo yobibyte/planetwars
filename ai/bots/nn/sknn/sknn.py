@@ -39,7 +39,7 @@ class sknn():
         self.trainer = sgd.SGD(
             learning_rate=learning_rate,
             # learning_rule=learning_rule.RMSProp(),
-            cost=cost, batch_size=100)
+            cost=cost, batch_size=50)
 
         self.input_normaliser = input_scaler
         self.output_normaliser = output_scaler
@@ -91,7 +91,9 @@ class sknn():
                 fan_out = self.units_per_layer[i+1]
                 lim = np.sqrt(6) / (np.sqrt(fan_in + fan_out))
             except:
+                # TODO: Better way to compute this for conv layers?
                 lim = 0.05
+
             layer_name = "Hidden_%i_%s"%(i,layer[0])
             activate_type = layer[0]
             if activate_type == "RectifiedLinear":
@@ -133,9 +135,13 @@ class sknn():
         output_layer_info = layers[-1]
         output_layer_name = "Output_%s"%output_layer_info[0]
 
-        fan_in = self.units_per_layer[-2] + 1
-        fan_out = self.units_per_layer[-1]
-        lim = np.sqrt(6) / (np.sqrt(fan_in + fan_out))
+        try:
+            fan_in = self.units_per_layer[-2] + 1
+            fan_out = self.units_per_layer[-1]
+            lim = np.sqrt(6) / (np.sqrt(fan_in + fan_out))
+        except:
+            # TODO: Better way to compute this for post-conv layers?
+            lim = 0.05
 
         if(output_layer_info[0] == "Linear"):
             output_layer = mlp.Linear(
@@ -144,22 +150,19 @@ class sknn():
                 irange=lim)
             pylearn2mlp_layers += [output_layer]
 
-        #print X.shape[1:]
-        input_space = Conv2DSpace(shape=X.shape[1:], num_channels=1)
-        #if(self.conv_input):
-        #    X = np.array([X]).transpose(0,2,3,1)
-        self.mlp = mlp.MLP(pylearn2mlp_layers, input_space=input_space)
-        #view = (100,X.shape[1:][0], X.shape[1:][1], 1)
+        if self.conv_input:
+            nvis = None
+            input_space = Conv2DSpace(shape=X.shape[1:], num_channels=1)
+            self.view = input_space.get_origin_batch(100)
+            self.ds = DenseDesignMatrix(topo_view=self.view, y=y)
+        else:
+            nvis = self.units_per_layer[0]
+            input_space = None
+            self.ds = DenseDesignMatrix(X=X, y=y)
 
-        self.view = input_space.get_origin_batch(100)
-        #print view.shape
-        #view = np.array(view)
-        #exit()
-        self.ds = DenseDesignMatrix(topo_view=self.view, y=y)
+        self.mlp = mlp.MLP(pylearn2mlp_layers, input_space=input_space, nvis=nvis)
         self.trainer.setup(self.mlp, self.ds)
         inputs = self.mlp.get_input_space().make_theano_batch()
-        #print inputs
-        #exit()
         self.f = theano.function([inputs], self.mlp.fprop(inputs))
 
     def fit(self, X, y, epochs=100):
@@ -172,15 +175,12 @@ class sknn():
             self.linit(X, y)
         if(self.conv_input):
             X = np.array([X]).transpose(1,2,3,0)
-
-        #print X.shape
-        #exit()
         ds = self.ds
         X_s,y_s = self.__scale(X,y)
-        #print X_s.shape
-        #ds.X
-        # print "Training"
-        ds.X = ds.view_converter.topo_view_to_design_mat(X_s)
+        if self.conv_input:
+            ds.X = ds.view_converter.topo_view_to_design_mat(X_s)
+        else:
+            ds.X = X_s
         ds.y = y_s
 
         for e in range(epochs):
@@ -193,18 +193,11 @@ class sknn():
         :param X:
         :return:
         """
-
-        #(1, 897, 1, 1)
-        #print X.shape
         if(self.conv_input):
             X = np.array([X]).transpose(1,2,3,0)
-            #print X.shape
-            #exit()
-
         X_s,_ = self.__scale(X, None)
         y =  self.f(X_s)
         y_s = self.__original_y(y)
-        #print "suceffule prediciton", X.shape
         return y_s
 
 class IncrementalMinMaxScaler():
