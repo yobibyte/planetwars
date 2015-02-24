@@ -43,7 +43,7 @@ class DeepNaN(object):
         self.learning_rate = 0.000001
         self.bot = DeepQ([
                 # ("ConvRectifiedLinear", {"channels": 16, "kernel": (1,16)}),
-                ("Maxout", 150, 3),
+                ("Maxout", 250, 2),
                 ("Linear", )],
                 dropout=False, learning_rate=self.learning_rate)
 
@@ -121,7 +121,7 @@ class DeepNaN(object):
 
         print >>sys.stderr, (1.0 if won else -1.0) * (1.0 if turns < 201 else 0.5)
 
-        n_batch = 1000
+        n_batch = 250
         self.bot.train_qs(n_epochs=1, n_batch=n_batch)
 
         """
@@ -134,13 +134,13 @@ class DeepNaN(object):
         self.bot.memory = negative + positive
         random.shuffle(self.bot.memory)
         """
-        self.bot.memory = self.bot.memory[len(self.bot.memory)/250:]
+        self.bot.memory = self.bot.memory[len(self.bot.memory)/100:]
 
         BATCH = 100
         if self.games % BATCH == 0:
 
             self.iterations += 1
-            print "\nIteration %i with ratio %+i as score %f." % (self.iterations, self.winloss, self.total_score / BATCH)
+            print "\nIteration %i with ratio %+3.1f as score %f." % (self.iterations, self.winloss/2.0, self.total_score / BATCH)
             positive = [(s, a, p, r) for (s, a, p, r) in self.bot.memory if r > 0.0]
             negative = [(s, a, p, r) for (s, a, p, r) in self.bot.memory if r < 0.0]
             print "  - memory %i, positive %i, negative %i" % (len(self.bot.memory), len(positive), len(negative))

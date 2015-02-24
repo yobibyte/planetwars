@@ -9,7 +9,7 @@ from .sample import all_to_close_or_weak, strong_to_weak
 @planetwars_class
 class Stochastic(object):
 
-    EPSILON = 1.0
+    EPSILON = 0.5
 
     def __call__(self, turn, pid, planets, fleets):
         # if random.random() < Stochastic.EPSILON:
