@@ -6,15 +6,16 @@ from planetwars.utils import *
 
 @planetwars_ai("StrongToRandom")
 def strong_to_random(turn, pid, planets, fleets):
-    if random.random() > 0.5:
-        return []
-
     my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)
     other_planets = their_planets + neutral_planets
     if len(my_planets) == 0 or len(other_planets) == 0:
         return []
     my_strongest = max(my_planets, key=get_ships)
     other_random = random.choice(other_planets)
+
+    if random.randint(0, my_strongest.ships) < random.randint(0, other_random.ships):
+        return []
+
     return [Order(my_strongest, other_random, my_strongest.ships * 0.5)]
 
 @planetwars_ai("StrongToWeak")

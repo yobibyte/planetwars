@@ -36,23 +36,20 @@ def clamp(value):
 @planetwars_class
 class DeepNaN(object):
 
-    # 16x100 for 5 planets
-    # 16x250 for 7 planets
-
     def __init__(self):
-        self.learning_rate = 0.000001
-        self.bot = DeepQ([
-                # ("ConvRectifiedLinear", {"channels": 16, "kernel": (1,16)}),
-                # ("Maxout", 121, 2),
-                ("RectifiedLinear", 1620),
-                ("Linear", )],
-                dropout=False, learning_rate=self.learning_rate)
-
         try:
-            self.bot.load()
+            self.bot = DeepQ.load()
             print "DeepNaN loaded!"
         except IOError:
-            pass
+            self.learning_rate = 0.00001
+            self.bot = DeepQ([
+                    # ("ConvRectifiedLinear", {"channels": 16, "kernel": (1,16)}),
+                    # ("Maxout", 121, 2),
+                    ("RectifiedLinear", 4232),
+                    ("Linear", )],
+                    dropout=False,
+                    learning_rate=self.learning_rate)
+            print "DeepNaN created."
 
         self.turn_score = {}
         self.iteration_score = {}
