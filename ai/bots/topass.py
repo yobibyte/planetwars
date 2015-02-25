@@ -20,7 +20,7 @@ from planetwars.utils import *
 
 from ..bots.nn.deepq.deepq import DeepQ
 from .stochastic import Stochastic
-from .sample import strong_to_weak, strong_to_close
+from .sample import strong_to_weak, strong_to_close, strong_to_best, strong_to_random, random_ai
 
 
 ACTIONS = 9
@@ -43,7 +43,8 @@ class DeepNaN(object):
         self.learning_rate = 0.000001
         self.bot = DeepQ([
                 # ("ConvRectifiedLinear", {"channels": 16, "kernel": (1,16)}),
-                ("Maxout", 250, 2),
+                # ("Maxout", 121, 2),
+                ("RectifiedLinear", 1620),
                 ("Linear", )],
                 dropout=False, learning_rate=self.learning_rate)
 
@@ -59,14 +60,24 @@ class DeepNaN(object):
         self.games = 0
         self.winloss = 0
         self.total_score = 0.0
-        self.epsilon = 0.10001
+        self.epsilon = 0.20001
         self.greedy = None
         self.iterations = 0
+        self.balance = 0
 
     def __call__(self, turn, pid, planets, fleets):
         if pid == 2:
-            if self.games % 2 == 0:
-                return strong_to_weak(turn, pid, planets, fleets)
+            # if self.games % 2 == 0:
+            #     return []
+            # if self.games % 2 == 1:
+            return strong_to_random(turn, pid, planets, fleets)
+            # if self.games % 3 == 2:
+            #    return strong_to_weak(turn, pid, planets, fleets)
+            # elif self.games % 10 == 6:
+            #    return strong_to_close(turn, pid, planets, fleets)
+            # elif self.games % 10 == 8:
+            #     return strong_to_best(turn, pid, planets, fleets)
+            # Self-play on all odd games.
 
         # Build the input matrix for data to feed into the DNN.
         a_inputs = self.createInputVector(pid, planets, fleets)
@@ -75,7 +86,7 @@ class DeepNaN(object):
         """
         # Reward calculated from the action in previous timestep.
         score = sum([p.growth for p in planets if p.id == pid])
-        reward = (score - self.turn_score.get(pid, 0)) / 10.0
+        reward = (score - self.turn_score.get(pid, 0)) / 20.0
         self.turn_score[pid] = score
         """
 
@@ -90,74 +101,72 @@ class DeepNaN(object):
         return o
 
     def done(self, turns, pid, planets, fleets, won):
-        from collections import defaultdict
-        score = defaultdict(int)
-        for p in planets:
-            score[p.owner] += p.ships
-        for f in fleets:
-            score[f.owner] += f.ships
-
-        if won:
-            assert score[pid] >= score[3-pid]
-        else:
-            assert score[pid] <= score[3-pid]
-
         a_inputs = self.createInputVector(pid, planets, fleets)
         orders, a_filter = self.createOutputVectors(pid, planets, fleets)
-        score = +1.0 if won else -1.0
-
-        self.bot.act_qs(a_inputs, score * SCALE, terminal=True, n_actions=len(orders),
-                        q_filter=0.0, episode=pid)
-        if pid in self.turn_score:
-            del self.turn_score[pid]
-
-        if pid == 2:
-            return
         
-        # if self.games % 2 == 0:
+        if turns < 201:
+            score = (1.0 if won else -1.0)
+        else:
+            mine = sum([i.ships for i in (planets+fleets) if i.owner == pid])
+            theirs = sum([i.ships for i in (planets+fleets) if i.owner not in (pid, 0)])
+            total = sum([i.ships for i in (planets+fleets)])
+            score = float(mine - theirs) / float(total)
+
+        def train():
+            self.bot.act_qs(a_inputs, score * SCALE,
+                            terminal=True, n_actions=len(orders),
+                            q_filter=0.0, episode=pid)
+            n_batch = 250
+            self.bot.train_qs(n_epochs=1, n_batch=n_batch)
+            self.bot.memory = self.bot.memory[len(self.bot.memory)/50:]
+
+        """
+        # Odd games are self-play, process both sides and keep samples balanced.
+        if self.games % 2 == 1:
+            if (score >= 0 and self.balance <= 0) or (score < 0 and self.balance >= 0):
+                train()
+            else:
+                self.bot.episodes[pid] = []
+
+        # Even games are vs. known opponent.
+        else:
+        """
+
+        if pid == 2: # Don't process further if opponent.
+            return
+
         self.total_score += score
         self.winloss += (1 if won else -1) * (2 if turns < 201 else 1)
-        self.games += 1
 
-        print >>sys.stderr, (1.0 if won else -1.0) * (1.0 if turns < 201 else 0.5)
-
-        n_batch = 250
-        self.bot.train_qs(n_epochs=1, n_batch=n_batch)
-
-        """
-        positive = [(s, a, p, r) for (s, a, p, r) in self.bot.memory if r >= 0.0]
-        negative = [(s, a, p, r) for (s, a, p, r) in self.bot.memory if r < 0.0]
-        if len(negative) > len(positive):
-            negative = negative[len(negative)/250:]
+        if turns >= 201:
+            sys.stdout.write('o' if won else '.')
         else:
-            positive = positive[len(positive)/250:]
-        self.bot.memory = negative + positive
-        random.shuffle(self.bot.memory)
-        """
-        self.bot.memory = self.bot.memory[len(self.bot.memory)/100:]
+            sys.stdout.write('O' if won else '_')
+        print >>sys.stderr, score
 
-        BATCH = 100
+        train()
+        # endif known opponent.
+
+        if pid in self.turn_score:
+            del self.turn_score[pid]
+        
+        if pid == 2:
+            return
+        self.games += 1
+        positive = [(s, a, p, r) for (s, a, p, r) in self.bot.memory if r > 0.0]
+        negative = [(s, a, p, r) for (s, a, p, r) in self.bot.memory if r < 0.0]
+        self.balance = len(positive) - len(negative)
+
+        BATCH = 99
         if self.games % BATCH == 0:
-
             self.iterations += 1
-            print "\nIteration %i with ratio %+3.1f as score %f." % (self.iterations, self.winloss/2.0, self.total_score / BATCH)
-            positive = [(s, a, p, r) for (s, a, p, r) in self.bot.memory if r > 0.0]
-            negative = [(s, a, p, r) for (s, a, p, r) in self.bot.memory if r < 0.0]
+            print "\nIteration #%i, win ratio %+3.1f as score %f." % (self.iterations, self.winloss/2.0, self.total_score / BATCH)
             print "  - memory %i, positive %i, negative %i" % (len(self.bot.memory), len(positive), len(negative))
-
-            if self.iterations % 50 == 0:
-                n_batch = 1000
-                self.bot.train_qs(n_epochs=1000, n_batch=n_batch)
 
             self.winloss = 0
             self.total_score = 0.0
 
             self.bot.save()
-        else:
-            if turns >= 201:
-                sys.stdout.write('o' if won else '.')
-            else:
-                sys.stdout.write('O' if won else '_')
 
     """
     # SIMPLIFIED ACTION SPACE
@@ -248,14 +257,14 @@ class DeepNaN(object):
 
     def createInputVector(self, pid, planets, fleets):
         self.indices = range(len(planets))
-        # random.shuffle(self.indices)
 
         if pid == 2:
             for i in range(1,len(planets),2):
                 self.indices[i], self.indices[i+1] = self.indices[i+1], self.indices[i]
                 assert planets[self.indices[i]].growth == planets[self.indices[i+1]].growth
 
-        n_buckets = 12
+        n_buckets = 1
+        k_bucket = 4
 
         # For each planet:
         #   - Ship counts (3x)
@@ -263,8 +272,8 @@ class DeepNaN(object):
         #   - Planet distances (N)
         #   - Incoming buckets (k)
 
-        # +len(planets)
-        a_planets = numpy.zeros((len(planets), 2+1+n_buckets), dtype=numpy.float32)
+        # +len(planets), 2+1+n_buckets
+        a_planets = numpy.zeros((len(planets), 2+n_buckets), dtype=numpy.float32)
 
         for p in planets:
             idx = self.indices[p.id]
@@ -272,17 +281,17 @@ class DeepNaN(object):
             a_planets[idx, 0] = clamp(p.ships / 200.0)
             a_planets[idx, 1] = 1.0 if p.owner == pid else (0.0 if p.owner == 0 else -1.0)
 
-            # Ship creation per turn.
-            a_planets[idx, 2] = clamp(p.growth / 5.0)
-
             # Incoming ships bucketed by arrival time (logarithmic)
-            start = 3
+            start = 2
             for f in [f for f in fleets if f.destination == p.id]:
-                d = math.log(f.remaining_turns) * 4
+                d = math.log(f.remaining_turns) * k_bucket
                 a_planets[idx, start+min(n_buckets-1, d)] += f.ships * (1.0 if f.owner == pid else -1.0)
 
             for i in range(n_buckets):
                 a_planets[idx, start+i] = clamp(a_planets[idx, start+i] / 200.0)
+
+            # Ship creation per turn.
+            # a_planets[idx, 2] = clamp(p.growth / 5.0)
 
             # Distances from this planet.
             # start = 3+n_buckets
