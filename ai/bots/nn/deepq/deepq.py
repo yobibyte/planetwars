@@ -271,13 +271,13 @@ class DeepQ(object):
 
         return action
 
-    def save(self):
-        out_path = "./dq.pickle"
-        pickle.dump(self.network.mlp, open(out_path, "wb"))
+    def save(self, filename="./dq.pickle"):
+        pickle.dump(self, open(filename, "wb"))
 
-    def load(self):
-        with open("./dq.pickle","r") as f:
-            self.network.mlp = pickle.load(f)
+    @classmethod
+    def load(self, filename="./dq.pickle"):
+        with open(filename, "rb") as f:
+            return pickle.load(f)
 
     def __getstate__(self):
         #print self.__dict__.keys()

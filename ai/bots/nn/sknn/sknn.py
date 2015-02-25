@@ -32,6 +32,7 @@ class sknn():
         :return:
         """
         self.layers = layers
+        self.mlp = None
         self.ds = None
         self.f = None
         self.verbose = verbose
@@ -160,7 +161,8 @@ class sknn():
             input_space = None
             self.ds = DenseDesignMatrix(X=X, y=y)
 
-        self.mlp = mlp.MLP(pylearn2mlp_layers, input_space=input_space, nvis=nvis)
+        if self.mlp is None:
+            self.mlp = mlp.MLP(pylearn2mlp_layers, input_space=input_space, nvis=nvis)
         self.trainer.setup(self.mlp, self.ds)
         inputs = self.mlp.get_input_space().make_theano_batch()
         self.f = theano.function([inputs], self.mlp.fprop(inputs))
