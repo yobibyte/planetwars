@@ -40,7 +40,7 @@ class DeepNaN(object):
                           #("RectifiedLinear", 1500),
                            # ("RectifiedLinear", 1500),
                            #("RectifiedLinear", 200),
-                          ("RectifiedLinear", 200),
+                         # ("RectifiedLinear", 200),
                           ("Linear", )],
                          dropout=False, learning_rate=self.learning_rate)
 
