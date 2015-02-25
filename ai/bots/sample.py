@@ -4,9 +4,22 @@ from .. import planetwars_ai
 from planetwars.datatypes import Order
 from planetwars.utils import *
 
+@planetwars_ai("StrongToRandom")
+def strong_to_random(turn, pid, planets, fleets):
+    if random.random() > 0.5:
+        return []
+
+    my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)
+    other_planets = their_planets + neutral_planets
+    if len(my_planets) == 0 or len(other_planets) == 0:
+        return []
+    my_strongest = max(my_planets, key=get_ships)
+    other_random = random.choice(other_planets)
+    return [Order(my_strongest, other_random, my_strongest.ships * 0.5)]
+
 @planetwars_ai("StrongToWeak")
 def strong_to_weak(turn, pid, planets, fleets):
-    if random.random() > 0.25:
+    if random.random() > 0.75:
         return random_ai(turn, pid, planets, fleets)
 
     my_planets, their_planets, _ = aggro_partition(pid, planets)
@@ -18,7 +31,7 @@ def strong_to_weak(turn, pid, planets, fleets):
 
 @planetwars_ai("StrongToClose")
 def strong_to_close(turn, pid, planets, fleets):
-    if random.random() > 0.9:
+    if random.random() > 0.75:
         return random_ai(turn, pid, planets, fleets)
 
     my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)
@@ -31,7 +44,7 @@ def strong_to_close(turn, pid, planets, fleets):
 
 @planetwars_ai("StrongToBest")
 def strong_to_best(turn, pid, planets, fleets):
-    if random.random() > 0.67:
+    if random.random() > 0.5:
         return random_ai(turn, pid, planets, fleets)
 
     my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)
