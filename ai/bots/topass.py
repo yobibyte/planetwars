@@ -5,6 +5,7 @@ import math
 import numpy
 import random
 import itertools
+import collections
 
 from .. import planetwars_class
 from planetwars.datatypes import Order
@@ -22,6 +23,9 @@ from ..bots.nn.deepq.deepq import DeepQ
 from .stochastic import Stochastic
 from .sample import strong_to_weak, strong_to_close, strong_to_best, strong_to_random, random_ai
 
+
+NUM_GAMES = 200
+NUM_OPPONENTS = 8
 
 ACTIONS = 9
 SCALE = 1.0
@@ -45,14 +49,14 @@ class DeepNaN(object):
             self.bot = DeepQ([
                     # ("ConvRectifiedLinear", {"channels": 16, "kernel": (1,16)}),
                     # ("Maxout", 121, 2),
-                    ("RectifiedLinear", 4232),
+                    ("RectifiedLinear", 2116),
+                    ("RectifiedLinear", 2116),
                     ("Linear", )],
                     dropout=False,
                     learning_rate=self.learning_rate)
             print "DeepNaN created."
 
-        self.turn_score = {}
-        self.iteration_score = {}
+        self.opponent_score = collections.defaultdict(float)
 
         self.games = 0
         self.winloss = 0
@@ -60,35 +64,24 @@ class DeepNaN(object):
         self.running_score = -1.0
         self.running_best = -1.0
         self.running_game = 0
-        self.epsilon = 0.10001
-        self.greedy = None
-        self.iterations = 0
-        self.balance = 0
+        self.epsilon = 0.20001
 
     def __call__(self, turn, pid, planets, fleets):
         if pid == 2:
-            # if self.games % 2 == 0:
-            #     return []
-            # if self.games % 2 == 1:
-            return strong_to_random(turn, pid, planets, fleets)
-            # if self.games % 3 == 2:
-            #    return strong_to_weak(turn, pid, planets, fleets)
-            # elif self.games % 10 == 6:
-            #    return strong_to_close(turn, pid, planets, fleets)
-            # elif self.games % 10 == 8:
-            #     return strong_to_best(turn, pid, planets, fleets)
-            # Self-play on all odd games.
+            if self.games % NUM_OPPONENTS == 0:
+                return strong_to_weak(turn, pid, planets, fleets)
+            if self.games % NUM_OPPONENTS == 2:
+                return strong_to_close(turn, pid, planets, fleets)
+            if self.games % NUM_OPPONENTS == 4:
+                return strong_to_random(turn, pid, planets, fleets)
+            if self.games % NUM_OPPONENTS == 6:
+                return strong_to_best(turn, pid, planets, fleets)
+
+            # NOTE: Self-play on all odd games.
 
         # Build the input matrix for data to feed into the DNN.
         a_inputs = self.createInputVector(pid, planets, fleets)
         orders, a_filter = self.createOutputVectors(pid, planets, fleets)
-
-        """
-        # Reward calculated from the action in previous timestep.
-        score = sum([p.growth for p in planets if p.id == pid])
-        reward = (score - self.turn_score.get(pid, 0)) / 20.0
-        self.turn_score[pid] = score
-        """
 
         order_id = self.bot.act_qs(a_inputs, reward=0.0, episode=pid, terminal=False,
                                    q_filter=a_filter, n_actions=len(orders))
@@ -112,29 +105,37 @@ class DeepNaN(object):
             total = sum([i.ships for i in (planets+fleets)])
             score = 0.5 * float(mine - theirs) / float(total)
 
-        def train():
+        # If first player or second-player in self-play.
+        if pid == 1 or self.games % 2 == 1:
             self.bot.act_qs(a_inputs, score * SCALE,
                             terminal=True, n_actions=len(orders),
                             q_filter=0.0, episode=pid)
-            n_batch = 200
-            self.bot.train_qs(n_epochs=1, n_batch=n_batch)
-            self.bot.memory = [] # self.bot.memory[len(self.bot.memory)/50:]
-
-        """
-        # Odd games are self-play, process both sides and keep samples balanced.
-        if self.games % 2 == 1:
-            if (score >= 0 and self.balance <= 0) or (score < 0 and self.balance >= 0):
-                train()
-            else:
-                self.bot.episodes[pid] = []
-
-        # Even games are vs. known opponent.
-        else:
-        """
-
+        
         if pid == 2: # Don't process further if opponent.
             return
 
+        # Train both pid=1 and pid=2 here at the same time.
+        n_batch = 200
+        self.bot.train_qs(n_epochs=1, n_batch=n_batch)
+        self.bot.memory = []
+
+        if self.games % 2 == 1: # Self-play, don't score anything.
+            self.games += 1
+            
+            if self.games % NUM_GAMES == 0:
+                print "\nIteration #%i, win ratio %+3.1f as score %5.2f." % (self.games, self.winloss/2.0, self.total_score*2.0/NUM_GAMES)
+                for op, sc in self.opponent_score.items():
+                    print "\t- opponent %i, score %5.2f." % (op, sc * 4.0)
+                    self.opponent_score[op] = 0.0
+
+                self.winloss = 0
+                self.total_score = 0.0            
+            return
+
+        op = (self.games % 8) / 2
+        self.opponent_score[op] += score
+
+        self.games += 1
         self.total_score += score
         self.running_score = self.running_score * 0.99 + score * 0.01
         self.winloss += (1 if won else -1) * (2 if turns < 201 else 1)
@@ -145,35 +146,13 @@ class DeepNaN(object):
             sys.stdout.write('O' if won else '_')
         print >>sys.stderr, score
 
-        train()
-        # endif known opponent.
-
-        if pid in self.turn_score:
-            del self.turn_score[pid]
-        
-        if pid == 2:
-            return
-        self.games += 1
-        positive = [(s, a, p, r) for (s, a, p, r) in self.bot.memory if r > 0.0]
-        negative = [(s, a, p, r) for (s, a, p, r) in self.bot.memory if r < 0.0]
-        self.balance = len(positive) - len(negative)
-
-        if (1.0+self.running_score) > (1.0+self.running_best) * 1.01\
+        if self.running_score > (self.running_best+0.02)\
                 and self.games - self.running_game > 10\
                 and self.games > 500:
-            print("\n\tSaving bot, running score %5.2f." % self.running_score)
+            sys.stdout.write(" [S:%+4.2f] " % self.running_score)
             self.bot.save()
             self.running_best = self.running_score
             self.running_game = self.games
-
-        BATCH = 99
-        if self.games % BATCH == 0:
-            self.iterations += 1
-            print "\nIteration #%i, win ratio %+3.1f as score %f." % (self.iterations, self.winloss/2.0, self.total_score / BATCH)
-            # print "  - memory %i, positive %i, negative %i" % (len(self.bot.memory), len(positive), len(negative))
-
-            self.winloss = 0
-            self.total_score = 0.0
 
 
     """
