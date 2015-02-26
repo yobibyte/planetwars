@@ -57,7 +57,10 @@ class DeepNaN(object):
         self.games = 0
         self.winloss = 0
         self.total_score = 0.0
-        self.epsilon = 0.20001
+        self.running_score = -1.0
+        self.running_best = -1.0
+        self.running_game = 0
+        self.epsilon = 0.10001
         self.greedy = None
         self.iterations = 0
         self.balance = 0
@@ -107,15 +110,15 @@ class DeepNaN(object):
             mine = sum([i.ships for i in (planets+fleets) if i.owner == pid])
             theirs = sum([i.ships for i in (planets+fleets) if i.owner not in (pid, 0)])
             total = sum([i.ships for i in (planets+fleets)])
-            score = float(mine - theirs) / float(total)
+            score = 0.5 * float(mine - theirs) / float(total)
 
         def train():
             self.bot.act_qs(a_inputs, score * SCALE,
                             terminal=True, n_actions=len(orders),
                             q_filter=0.0, episode=pid)
-            n_batch = 250
+            n_batch = 200
             self.bot.train_qs(n_epochs=1, n_batch=n_batch)
-            self.bot.memory = self.bot.memory[len(self.bot.memory)/50:]
+            self.bot.memory = [] # self.bot.memory[len(self.bot.memory)/50:]
 
         """
         # Odd games are self-play, process both sides and keep samples balanced.
@@ -133,6 +136,7 @@ class DeepNaN(object):
             return
 
         self.total_score += score
+        self.running_score = self.running_score * 0.99 + score * 0.01
         self.winloss += (1 if won else -1) * (2 if turns < 201 else 1)
 
         if turns >= 201:
@@ -154,16 +158,23 @@ class DeepNaN(object):
         negative = [(s, a, p, r) for (s, a, p, r) in self.bot.memory if r < 0.0]
         self.balance = len(positive) - len(negative)
 
+        if (1.0+self.running_score) > (1.0+self.running_best) * 1.01\
+                and self.games - self.running_game > 10\
+                and self.games > 500:
+            print("\n\tSaving bot, running score %5.2f." % self.running_score)
+            self.bot.save()
+            self.running_best = self.running_score
+            self.running_game = self.games
+
         BATCH = 99
         if self.games % BATCH == 0:
             self.iterations += 1
             print "\nIteration #%i, win ratio %+3.1f as score %f." % (self.iterations, self.winloss/2.0, self.total_score / BATCH)
-            print "  - memory %i, positive %i, negative %i" % (len(self.bot.memory), len(positive), len(negative))
+            # print "  - memory %i, positive %i, negative %i" % (len(self.bot.memory), len(positive), len(negative))
 
             self.winloss = 0
             self.total_score = 0.0
 
-            self.bot.save()
 
     """
     # SIMPLIFIED ACTION SPACE
@@ -247,7 +258,12 @@ class DeepNaN(object):
             if src_id == dst_id: # NOP
                 orders.append([])
             else:
-                orders.append([Order(src, planets[dst_id], src.ships * 0.5)])
+                dst = planets[dst_id]
+                # if dst.owner == 0 and src.ships > dst.ships:
+                #     size = dst.ships + 1
+                # else:
+                size = src.ships * 0.5
+                orders.append([Order(src, dst, size)])
 
         del self.indices
         return orders, a_filter
@@ -260,8 +276,8 @@ class DeepNaN(object):
                 self.indices[i], self.indices[i+1] = self.indices[i+1], self.indices[i]
                 assert planets[self.indices[i]].growth == planets[self.indices[i+1]].growth
 
-        n_buckets = 1
-        k_bucket = 4
+        n_buckets = 6   # 12
+        k_bucket = 2    # 4
 
         # For each planet:
         #   - Ship counts (3x)

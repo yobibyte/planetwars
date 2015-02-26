@@ -40,7 +40,7 @@ class sknn():
         self.trainer = sgd.SGD(
             learning_rate=learning_rate,
             learning_rule=learning_rule.RMSProp(),
-            cost=cost, batch_size=50)
+            cost=cost, batch_size=1000)
 
         self.input_normaliser = input_scaler
         self.output_normaliser = output_scaler
@@ -201,6 +201,7 @@ class sknn():
         y =  self.f(X_s)
         y_s = self.__original_y(y)
         return y_s
+
 
 class IncrementalMinMaxScaler():
     def __init__(self, feature_range=(-1.0,1.0)):

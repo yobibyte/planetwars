@@ -18,7 +18,7 @@ class DeepQ(object):
     """
 
     def __init__(self, layers, dropout=False, input_scaler=None, output_scaler=None, learning_rate=0.001, verbose=0):
-        self.network = sknn(layers, dropout, input_scaler, output_scaler, learning_rate, verbose)
+        self.network = sknn(layers, dropout, IncrementalMinMaxScaler(), output_scaler, learning_rate, verbose)
         
         self.gamma = 0.99
         self.epsilon = 0.15
@@ -272,6 +272,9 @@ class DeepQ(object):
         return action
 
     def save(self, filename="./dq.pickle"):
+        self.episodes = collections.defaultdict(list)
+        self.last = {}
+
         pickle.dump(self, open(filename, "wb"))
 
     @classmethod
