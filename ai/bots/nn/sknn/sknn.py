@@ -234,10 +234,12 @@ class IncrementalMinMaxScaler():
 
         if not (self.data_min == data_min).all():
             # print "min changed" # , data_min - self.data_min
+            print 'X',
             self.changed = True
 
         if not (self.data_max == data_max).all():
             # print "max changed" # , data_max - self.data_max
+            print 'X',
             self.changed = True
 
         self.data_min = data_min

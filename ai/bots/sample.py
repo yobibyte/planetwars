@@ -20,7 +20,7 @@ def strong_to_random(turn, pid, planets, fleets):
 
 @planetwars_ai("StrongToWeak")
 def strong_to_weak(turn, pid, planets, fleets):
-    if random.random() > 0.75:
+    if random.random() > 0.5:
         return random_ai(turn, pid, planets, fleets)
 
     my_planets, their_planets, _ = aggro_partition(pid, planets)
@@ -32,7 +32,7 @@ def strong_to_weak(turn, pid, planets, fleets):
 
 @planetwars_ai("StrongToClose")
 def strong_to_close(turn, pid, planets, fleets):
-    if random.random() > 0.75:
+    if random.random() > 0.5:
         return random_ai(turn, pid, planets, fleets)
 
     my_planets, their_planets, neutral_planets = aggro_partition(pid, planets)

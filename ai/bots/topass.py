@@ -49,8 +49,8 @@ class DeepNaN(object):
             self.bot = DeepQ([
                     # ("ConvRectifiedLinear", {"channels": 16, "kernel": (1,16)}),
                     # ("Maxout", 121, 2),
-                    ("RectifiedLinear", 2116),
-                    ("RectifiedLinear", 2116),
+                    ("RectifiedLinear", 560),
+                    ("RectifiedLinear", 560),
                     ("Linear", )],
                     dropout=False,
                     learning_rate=self.learning_rate)
@@ -255,8 +255,8 @@ class DeepNaN(object):
                 self.indices[i], self.indices[i+1] = self.indices[i+1], self.indices[i]
                 assert planets[self.indices[i]].growth == planets[self.indices[i+1]].growth
 
-        n_buckets = 6   # 12
-        k_bucket = 2    # 4
+        n_buckets = 12   # 12
+        k_bucket = 4    # 4
 
         # For each planet:
         #   - Ship counts (3x)
@@ -270,7 +270,7 @@ class DeepNaN(object):
         for p in planets:
             idx = self.indices[p.id]
             
-            a_planets[idx, 0] = clamp(p.ships / 200.0)
+            a_planets[idx, 0] = math.log(1+p.ships)
             a_planets[idx, 1] = 1.0 if p.owner == pid else (0.0 if p.owner == 0 else -1.0)
 
             # Incoming ships bucketed by arrival time (logarithmic)
@@ -280,7 +280,8 @@ class DeepNaN(object):
                 a_planets[idx, start+min(n_buckets-1, d)] += f.ships * (1.0 if f.owner == pid else -1.0)
 
             for i in range(n_buckets):
-                a_planets[idx, start+i] = clamp(a_planets[idx, start+i] / 200.0)
+                v = a_planets[idx, start+i]
+                a_planets[idx, start+i] = math.copysign(1, v) * math.log(1+abs(v))
 
             # Ship creation per turn.
             # a_planets[idx, 2] = clamp(p.growth / 5.0)
