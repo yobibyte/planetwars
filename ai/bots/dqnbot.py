@@ -10,7 +10,7 @@ from keras.layers import Dense, Activation
 
 @planetwars_class
 class DQN(object):
-    
+
     def __init__(self, mem_size=10000, eps=0.1, gamma=0.98, bsize=32, memory=None, model=None):
       self.mem_size = mem_size
       if memory is None:
@@ -24,7 +24,7 @@ class DQN(object):
           ctr = 0
         else:
           ctr = len(memory)
-
+      
       self.last_state = None
       self.last_action = None
       self.eps = eps
@@ -47,11 +47,17 @@ class DQN(object):
       # state is a tuple (planets, fleet)
       # reward is scalar
       # terminal is boolean
-      self.memory[ctr] = (self.last_state, self.last_action, new_state, reward, terminal)
-      ctr+=1
-      if ctr == self.mem_size:
-        ctr = 0
- 
+      self.memory[self.ctr] = (self.last_state, self.last_action, new_state, reward, terminal)
+      self.ctr+=1
+      if self.ctr == self.mem_size:
+        self.ctr = 0
+
+    def get_memory(self):
+      return self.memory
+
+    def set_memory(self, memory):
+      self.memory = memory
+
     def planets2state(self, planets):
       res = []
       for p in planets:
@@ -77,7 +83,7 @@ class DQN(object):
     def train(self):
       batch_indices = np.random.choice(self.memory, self.bsize)
       # change to SEQUENCE FUNCTION phi, k=4 as in paper
-      X = np.array(self.planet2state(self.memory[idx][0]) for idx in batch_indices)
+      X = np.array(self.planets2state(self.memory[idx][0]) for idx in batch_indices)
       Y = np.zeros(self.bsize)
       for i, state in enumerate(X):
         if state[-1]:
@@ -95,7 +101,7 @@ class DQN(object):
       self.model.fit(X,Y, batch_size=self.bsize, nb_epoch=1)     
 
     def __call__(self, turn, pid, planets, fleets):
-        
+
         def mine(x):
             return x.owner == pid
         

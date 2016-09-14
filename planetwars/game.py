@@ -5,6 +5,7 @@ from planetwars import Fleet, Planet
 from planetwars.internal import load_all_maps
 from planetwars.utils import count_ships, partition
 
+
 def _neutral_player(turn, pid, planets, fleets):
     return []
 
@@ -45,7 +46,7 @@ class PlanetWars:
         fleets = tuple(fleet.freeze() for fleet in self.fleets)
         return planets, fleets
 
-    def play(self):
+    def play(self, memory=None):
         planets, fleets = self.freeze()
         for view in self.views:
             view.initialize(self.turns_per_second, self.planets, self.map_name, self.player_names)
@@ -54,12 +55,19 @@ class PlanetWars:
         self.time_max    = [0 for i in range(len(self.players))]
         next_turn = time.time() + self.turn_duration
         winner = -1
+
+        for i, p in enumerate(self.players):
+            if str(p).split()[0]=='<ai.bots.dqnbot.DQN' and memory is not None:
+                p.set_memory(memory)
+                break
+
         while winner < 0:
             # Wait until time has passed
             now = time.time()
             if self.turns_per_second is not None and now < next_turn:
                 time.sleep(next_turn - now)
             next_turn += self.turn_duration
+        
             # Do the turn
             self.do_turn()
             # Update views
@@ -70,6 +78,15 @@ class PlanetWars:
             winner, ship_counts, turns = self.gameover()
             # print winner, ship_counts, turns
 
+
+            for i, p in enumerate(self.players):
+                if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
+                    p.update_memory((planets, fleets), \
+                                    reward = 1 if winner<0 else 0, \
+                                    terminal = False if winner<0 else True)
+                    break
+
+
         for view in self.views:
             view.game_over(winner, ship_counts, turns)
 
@@ -78,7 +95,14 @@ class PlanetWars:
                 p.done(winner == i, turns)
             except AttributeError:
                 pass
+
+        for i, p in enumerate(self.players):
+            if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
+                return p.get_memory(), winner, ship_counts, turns, self.time_totals, self.time_max
+
         return winner, ship_counts, turns, self.time_totals, self.time_max
+
+                
 
 
     def do_turn(self):

@@ -56,6 +56,7 @@ def main(argv):
     time_totals = numpy.zeros((len(players)))    
 
     maps = []
+    memory = []
     
     for gn in range(arguments.games):
       n = gn+1
@@ -80,7 +81,10 @@ def main(argv):
         for i2,p2 in enumerate(players):
           if i2 >= i1:
             continue
+            
+
           pair = [players[i1], players[i2]]
+
           if map_name == None:
             game = PlanetWars(pair, planets=copy.deepcopy(state.planets), \
                               fleets=copy.deepcopy(state.fleets), collisions=arguments.collisions)
@@ -88,8 +92,18 @@ def main(argv):
           else:
             game = PlanetWars(pair, map_name, collisions=arguments.collisions)
           
-          winner, ship_counts, turns, tt, tm = game.play()
+
+          if players[i1]=="DQN" or players[i2]=="DQN":
+            if len(memory)>0:
+              memory, winner, ship_counts, turns, tt, tm = game.play(memory=memory)
+            else:
+              memory, winner, ship_counts, turns, tt, tm = game.play()
+          else:
+            winner, ship_counts, turns, tt, tm = game.play()
           
+          
+
+
           print "%-16s vs. %-16s winner= %d turns= %d" % (p1, p2, winner, turns)
           if winner == 0:
             res[i1][i2] += 0.5
