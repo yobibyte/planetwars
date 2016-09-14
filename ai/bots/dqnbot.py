@@ -12,13 +12,19 @@ from keras.layers import Dense, Activation
 class DQN(object):
     
     def __init__(self, mem_size=10000, eps=0.1, gamma=0.98, bsize=32, memory=None, model=None):
-      self.ctr = 0
       self.mem_size = mem_size
       if memory is None:
         self.memory = [0 for i in range(mem_size)]
         self.is_mem_full = False
+        self.ctr = 0
       else:
+        self.memory = memory
         self.is_mem_full = len(memory) == mem_size
+        if self.is_mem_full:
+          ctr = 0
+        else:
+          ctr = len(memory)
+
       self.last_state = None
       self.last_action = None
       self.eps = eps
