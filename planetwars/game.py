@@ -84,7 +84,6 @@ class PlanetWars:
                     p.update_memory((planets, fleets),
                                     reward = 1 if winner<0 or winner==i else 0,
                                     terminal = False if winner<0 else True)
-                    p.train()
                     break
 
 
