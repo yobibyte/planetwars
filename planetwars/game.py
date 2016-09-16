@@ -56,10 +56,6 @@ class PlanetWars:
         next_turn = time.time() + self.turn_duration
         winner = -1
 
-        # for i, p in enumerate(self.players):
-        #     if str(p).split()[0]=='<ai.bots.dqnbot.DQN' and memory is not None:
-        #         p.set_memory(memory)
-        #         break
 
         while winner < 0:
             # Wait until time has passed
@@ -81,8 +77,13 @@ class PlanetWars:
 
             for i, p in enumerate(self.players):
                 if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
-                    if reward is None:
-                      p.update_memory((planets, fleets), reward = 1 if winner<0 or winner==i else 0, terminal = False if winner<0 else True)
+                    if reward != -10000:
+                        if winner==1:
+                            p.update_memory((planets, fleets), reward+1000, terminal = True)
+                        elif winner==2:
+                            p.update_memory((planets, fleets), reward-1000, terminal = True)
+                        elif winner<0:
+                            p.update_memory((planets, fleets), reward+1, terminal = False)
                     else:
                       p.update_memory((planets, fleets), reward, terminal = False if winner<0 else True)
                       
@@ -98,10 +99,6 @@ class PlanetWars:
             except AttributeError:
                 pass
 
-        # for i, p in enumerate(self.players):
-        #     if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
-        #         return p.get_memory(), winner, ship_counts, turns, self.time_totals, self.time_max
-
         return winner, ship_counts, turns, self.time_totals, self.time_max
 
                 
@@ -109,7 +106,7 @@ class PlanetWars:
 
     def do_turn(self):
         """Performs a single turn of the game."""
-        reward = None
+        reward = 0
         # Get orders
         planets, fleets = self.freeze()
         player_orders = []
@@ -161,18 +158,32 @@ class PlanetWars:
         # Arrival
         arrived_fleets, self.fleets = partition(lambda fleet: fleet.has_arrived(), self.fleets)
         for planet in self.planets:
+            
+            old_owner = planet.owner
             planet.battle([fleet for fleet in arrived_fleets if fleet.destination == planet])
+            new_owner = planet.owner
+
+            if reward != -10000:
+                if old_owner==1 and new_owner==2:
+                    reward -= 100
+                elif new_owner==1 and old_owner==2:
+                    reward += 100
+
         return reward
+
+
     def issue_order(self, player, order):
         if order.source.owner != player:
             #raise Exception("Player %d issued an order from enemy planet %d." % (player, order.source.id))
-            return -1000
+            return -10000
         source = self.planets[order.source.id]
         ships = int(min(order.ships, source.ships))
         if ships > 0:
             destination = self.planets[order.destination.id]
             source.ships -= ships
             self.fleets.append(Fleet(player, ships, source, destination))
+
+        return 0
 
     # old code
     #

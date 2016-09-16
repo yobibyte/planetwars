@@ -91,13 +91,6 @@ def main(argv):
           else:
             game = PlanetWars(pair, map_name, collisions=arguments.collisions)
           
-
-          # if players[i1]=="DQN" or players[i2]=="DQN":
-          #   if len(memory)>0:
-          #     memory, winner, ship_counts, turns, tt, tm = game.play(memory=memory)
-          #   else:
-          #     memory, winner, ship_counts, turns, tt, tm = game.play()
-          # else:
           winner, ship_counts, turns, tt, tm = game.play()
           
           
