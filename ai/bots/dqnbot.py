@@ -26,7 +26,7 @@ class DQN(object):
     model.add(Dense(30, batch_input_shape=(None, input_dim)))
     model.add(Activation('relu'))
     model.add(Dense(output_dim))
-    model.add(Activation('sigmoid'))
+    model.add(Activation('softmax'))
     model.compile(loss='mse', optimizer='sgd', metrics=['accuracy'])
     # model.load_weights("model.h5")
 
