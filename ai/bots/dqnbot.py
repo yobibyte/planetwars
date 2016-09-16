@@ -15,7 +15,7 @@ from keras.layers import Dense, Activation
 @planetwars_class
 class DQN(object):
 
-    mem_size=10
+    mem_size=10000
     memory = []
     counter=0
     
