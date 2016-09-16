@@ -69,7 +69,7 @@ class PlanetWars:
             next_turn += self.turn_duration
         
             # Do the turn
-            self.do_turn()
+            reward = self.do_turn()
             # Update views
             planets, fleets = self.freeze()
             for view in self.views:
@@ -81,9 +81,11 @@ class PlanetWars:
 
             for i, p in enumerate(self.players):
                 if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
-                    p.update_memory((planets, fleets),
-                                    reward = 1 if winner<0 or winner==i else 0,
-                                    terminal = False if winner<0 else True)
+                    if reward is None:
+                      p.update_memory((planets, fleets), reward = 1 if winner<0 or winner==i else 0, terminal = False if winner<0 else True)
+                    else:
+                      p.update_memory((planets, fleets), reward, terminal = False if winner<0 else True)
+                      
                     break
 
 
@@ -107,7 +109,7 @@ class PlanetWars:
 
     def do_turn(self):
         """Performs a single turn of the game."""
-
+        reward = None
         # Get orders
         planets, fleets = self.freeze()
         player_orders = []
@@ -126,7 +128,7 @@ class PlanetWars:
         for player, orders in enumerate(player_orders):
 #          print "turn", self.turn, "player:", player, "orders:", orders
           for order in orders:
-            self.issue_order(player, order)
+            reward = self.issue_order(player, order)
 
         # Advancement
         for planet in self.planets:
@@ -160,10 +162,11 @@ class PlanetWars:
         arrived_fleets, self.fleets = partition(lambda fleet: fleet.has_arrived(), self.fleets)
         for planet in self.planets:
             planet.battle([fleet for fleet in arrived_fleets if fleet.destination == planet])
-
+        return reward
     def issue_order(self, player, order):
         if order.source.owner != player:
-            raise Exception("Player %d issued an order from enemy planet %d." % (player, order.source.id))
+            #raise Exception("Player %d issued an order from enemy planet %d." % (player, order.source.id))
+            return -1000
         source = self.planets[order.source.id]
         ships = int(min(order.ships, source.ships))
         if ships > 0:

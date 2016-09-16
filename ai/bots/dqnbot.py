@@ -15,7 +15,7 @@ from keras.layers import Dense, Activation
 @planetwars_class
 class DQN(object):
 
-    mem_size=100
+    mem_size=1000
     memory = []
     counter=0
     
@@ -95,7 +95,6 @@ class DQN(object):
         print counter
 
     def __call__(self, turn, pid, planets, fleets):
-        #### HOHOHOHOH
         self.pid = pid
         self.turn = turn
 
