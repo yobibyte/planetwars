@@ -10,11 +10,12 @@ from keras.models import Sequential
 from keras.layers import Dense, Activation
 
 # TODO store only the best src,dst features in the state
+# TODO change input dim to 3d 
 
 @planetwars_class
 class DQN(object):
 
-    mem_size=10000
+    mem_size=100
     memory = []
     counter=0
     
@@ -70,10 +71,10 @@ class DQN(object):
       return fv
 
     def make_smart_move(self, planets, fleets, turn, pid):
-      general_features = self.make_state_features(turn, pid, planets, fleets)
+      general_features = self.make_state_features(planets, fleets)
       features = []
+      srcs, other_planets = partition(lambda x: x.owner == pid, planets)
 
-      srcs = [p for p in planets if p.id==pid]
       for s in srcs:
         for d in planets:
           features.append(self.make_features(s,d,pid, *general_features))
@@ -82,10 +83,10 @@ class DQN(object):
       s_i, d_i = np.unravel_index(move_idx, (len(srcs), len(planets)))
       return srcs[s_i], planets[d_i]  
 
-    def make_state_features(self, turn, pid, planets, fleets):
+    def make_state_features(self, planets, fleets):
 
-      my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
-      your_planets, neutral_planets = partition(lambda x: x.owner != 0, other_planets)
+      pid = self.pid
+      turn = self.turn
 
       buckets = 10
       my_ships_total = 0
@@ -131,15 +132,20 @@ class DQN(object):
 
     def Q_approx(self, sampled):
       preds = []
-      sf = make_state_features()
-      general_features = make_state_features(turn, pid, planets, fleets)
-
       for y in sampled:
+        general_features = self.make_state_features(y[0], y[1])
         features = []
+        srcs, _ = partition(lambda x: x.owner == self.pid, y[0])
         for s in srcs:
-          for d in dsts:
-            features.append(self.make_features(s,d,pid, *general_features))
-        preds.append(np.max(Q.predict(features)))
+          for d in y[0]:
+            #print('QWERQWER',len(self.make_features(s,d, self.pid, *general_features)))
+            features.append(self.make_features(s,d, self.pid, *general_features))
+        features = np.array(features)
+        if len(srcs) > 0:
+          preds.append(np.max(DQN.model.predict(features)))
+        else:
+          ### DANGEROUS HERE!
+          preds.append(0)
 
       return preds
 
@@ -149,16 +155,16 @@ class DQN(object):
       targets = np.zeros((inputs.shape[0], DQN.output_dim))
 
       idx = np.random.randint(0, len(DQN.memory), size=self.bsize)
-      sampled_states = np.array(DQN.memory[i] for i in idx)
+      sampled_states = [DQN.memory[i] for i in idx]
       Y = np.array([DQN.memory[i][3] for i in idx])
-      print('SHAPE',sampled_states.shape)
       preds = self.Q_approx(np.array([ss[2] for ss in sampled_states]))
       for i, m_idx in enumerate(idx):
         if not DQN.memory[m_idx][4]:
           Y[i] = Y[i]+self.gamma*preds[i]
 
       # TODO CHECK THE ALGO 
-      DQN.model.train_on_batch(np.array(self.Q_approx(ss[1] for ss in sampled_states), Y))
+      for s in sampled_states:
+        DQN.model.train_on_batch(np.array(np.max(self.Q_approx(s[0]), Y)))
       
       DQN.counter+=1
       if counter==10000:
@@ -167,7 +173,11 @@ class DQN(object):
         print counter
 
     def __call__(self, turn, pid, planets, fleets):
+        #### HOHOHOHOH
+        self.pid = pid
+        self.turn = turn
 
+  
         my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
         if len(my_planets) == 0 or len(other_planets) == 0:
           return []
@@ -177,7 +187,6 @@ class DQN(object):
         if len(DQN.memory)<DQN.mem_size or random.random() < self.eps:
           my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
           src, dst = self.make_random_move(my_planets, other_planets)
-
         else:
           src, dst = self.make_smart_move(planets,fleets, turn, pid)
 
