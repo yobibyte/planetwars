@@ -15,20 +15,20 @@ from keras.layers import Dense, Activation
 @planetwars_class
 class DQN(object):
 
-    mem_size=10000
+    mem_size=10
     memory = []
     counter=0
     
     input_dim = 23*5
     output_dim = 23*23
-
+    #output_dim = 1
     model = Sequential()
     model.add(Dense(100, batch_input_shape=(None, input_dim)))
     model.add(Activation('relu'))
     model.add(Dense(100))
     model.add(Activation('relu'))
     model.add(Dense(output_dim))
-    model.add(Activation('softmax'))
+    model.add(Activation('sigmoid'))
     model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
     # model.load_weights("model.h5")
 
@@ -81,13 +81,17 @@ class DQN(object):
 
       idx = np.random.randint(0, len(DQN.memory), size=self.bsize)
       sampled_states = [DQN.memory[i] for i in idx]
-      Y = np.array([DQN.memory[i][3] for i in idx])
-      preds = DQN.model.predict(np.array([self.state_to_features(s[2]) for s in sampled_states]))
+      Y = np.zeros((self.bsize, 23*23))
+      for i, m_idx in enumerate(idx):
+        a_idx = np.ravel_multi_index(DQN.memory[m_idx][1], (23,23))
+        Y[i][a_idx] = DQN.memory[m_idx][3] # action index
+      inpt = np.array([self.state_to_features(s[2]) for s in sampled_states])
+      preds = np.max(DQN.model.predict(inpt), axis=1)
       for i, m_idx in enumerate(idx):
         if not DQN.memory[m_idx][4]:
-          Y[i] = Y[i]+self.gamma*preds[i]
-
-      # TODO CHECK THE ALGO 
+          a_idx = np.ravel_multi_index(DQN.memory[m_idx][1], (23,23))
+          Y[i][a_idx] += self.gamma*preds[i]
+      # TODO CHECK THE ALGO
       DQN.model.train_on_batch(np.array([self.state_to_features(s[0]) for s in sampled_states]), Y)
       
       DQN.counter+=1
@@ -113,7 +117,7 @@ class DQN(object):
           src, dst = self.make_smart_move(planets,fleets)
 
         #self.eps *= 0.98
-        self.last_action = (src, dst)
+        self.last_action = (src.id, dst.id)
         
         return [Order(src, dst, src.ships/2)]
 
