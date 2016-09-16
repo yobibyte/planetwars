@@ -46,7 +46,7 @@ class PlanetWars:
         fleets = tuple(fleet.freeze() for fleet in self.fleets)
         return planets, fleets
 
-    def play(self, memory=None):
+    def play(self):
         planets, fleets = self.freeze()
         for view in self.views:
             view.initialize(self.turns_per_second, self.planets, self.map_name, self.player_names)
@@ -56,10 +56,10 @@ class PlanetWars:
         next_turn = time.time() + self.turn_duration
         winner = -1
 
-        for i, p in enumerate(self.players):
-            if str(p).split()[0]=='<ai.bots.dqnbot.DQN' and memory is not None:
-                p.set_memory(memory)
-                break
+        # for i, p in enumerate(self.players):
+        #     if str(p).split()[0]=='<ai.bots.dqnbot.DQN' and memory is not None:
+        #         p.set_memory(memory)
+        #         break
 
         while winner < 0:
             # Wait until time has passed
@@ -81,9 +81,10 @@ class PlanetWars:
 
             for i, p in enumerate(self.players):
                 if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
-                    p.update_memory((planets, fleets), \
-                                    reward = 1 if winner<0 else 0, \
+                    p.update_memory((planets, fleets),
+                                    reward = 1 if winner<0 or winner==i else 0,
                                     terminal = False if winner<0 else True)
+                    p.train()
                     break
 
 
@@ -96,9 +97,9 @@ class PlanetWars:
             except AttributeError:
                 pass
 
-        for i, p in enumerate(self.players):
-            if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
-                return p.get_memory(), winner, ship_counts, turns, self.time_totals, self.time_max
+        # for i, p in enumerate(self.players):
+        #     if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
+        #         return p.get_memory(), winner, ship_counts, turns, self.time_totals, self.time_max
 
         return winner, ship_counts, turns, self.time_totals, self.time_max
 
