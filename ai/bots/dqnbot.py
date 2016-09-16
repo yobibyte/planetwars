@@ -20,14 +20,16 @@ class DQN(object):
     counter=0
     
     input_dim = 23*5
-    output_dim = 1
+    output_dim = 23*23
 
     model = Sequential()
-    model.add(Dense(30, batch_input_shape=(None, input_dim)))
+    model.add(Dense(100, batch_input_shape=(None, input_dim)))
+    model.add(Activation('relu'))
+    model.add(Dense(100))
     model.add(Activation('relu'))
     model.add(Dense(output_dim))
     model.add(Activation('softmax'))
-    model.compile(loss='mse', optimizer='sgd', metrics=['accuracy'])
+    model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
     # model.load_weights("model.h5")
 
     def __init__(self, eps=0.1, gamma=0.98, bsize=32): 
