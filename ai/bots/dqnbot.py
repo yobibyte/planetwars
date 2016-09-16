@@ -11,6 +11,7 @@ from keras.layers import Dense, Activation
 
 # TODO store only the best src,dst features in the state
 # TODO change input dim to 3d 
+# TODO use fleet for net inpt
 
 @planetwars_class
 class DQN(object):
@@ -18,10 +19,10 @@ class DQN(object):
     mem_size=10000
     memory = []
     counter=0
+    n_planets = 23
     
-    input_dim = 23*5
-    output_dim = 23*23
-    #output_dim = 1
+    input_dim = n_planets*5
+    output_dim = n_planets**2
     model = Sequential()
     model.add(Dense(100, batch_input_shape=(None, input_dim)))
     model.add(Activation('relu'))
@@ -53,7 +54,7 @@ class DQN(object):
       features = self.state_to_features((planets, fleets))  
       scores = DQN.model.predict(np.array([features]))
       move_idx = np.argmax(scores)
-      s_i, d_i = np.unravel_index(move_idx, (len(planets), len(planets)))
+      s_i, d_i = np.unravel_index(move_idx, (n_planets, n_planets))
       return planets[s_i], planets[d_i]  
     
     def state_to_features(self,state):
@@ -64,12 +65,6 @@ class DQN(object):
         features.append(p.owner)
         features.append(p.ships)
         features.append(p.growth)
-      #for s in state[1]:
-      #  features.append(s.owner)
-      #  features.append(s.ships)
-      #  features.append(s.destination)
-      #  features.append(s.total_turns)
-      #  features.append(s.remaining_turns)
       return np.array(features)
 
     def make_random_move(self, src, dst):
@@ -79,19 +74,19 @@ class DQN(object):
 
     def train(self):
 
-      idx = np.random.randint(0, len(DQN.memory), size=self.bsize)
+      idx = np.random.randint(0, DQN.mem_size, size=self.bsize)
       sampled_states = [DQN.memory[i] for i in idx]
+      
       Y = np.zeros((self.bsize, 23*23))
-      for i, m_idx in enumerate(idx):
-        a_idx = np.ravel_multi_index(DQN.memory[m_idx][1], (23,23))
-        Y[i][a_idx] = DQN.memory[m_idx][3] # action index
       inpt = np.array([self.state_to_features(s[2]) for s in sampled_states])
       preds = np.max(DQN.model.predict(inpt), axis=1)
       for i, m_idx in enumerate(idx):
-        if not DQN.memory[m_idx][4]:
-          a_idx = np.ravel_multi_index(DQN.memory[m_idx][1], (23,23))
-          Y[i][a_idx] += self.gamma*preds[i]
-      # TODO CHECK THE ALGO
+        a_idx = np.ravel_multi_index(DQN.memory[m_idx][1], (23,23))
+        if DQN.memory[m_idx][4]:
+          Y[i][a_idx] = DQN.memory[m_idx][3]
+        else:
+          Y[i][a_idx] = DQN.memory[m_idx][3] + self.gamma*preds[i]
+      
       DQN.model.train_on_batch(np.array([self.state_to_features(s[0]) for s in sampled_states]), Y)
       
       DQN.counter+=1
