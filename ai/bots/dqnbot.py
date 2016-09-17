@@ -54,7 +54,7 @@ class DQN(object):
       features = self.state_to_features((planets, fleets))  
       scores = DQN.model.predict(np.array([features]))
       move_idx = np.argmax(scores)
-      s_i, d_i = np.unravel_index(move_idx, (n_planets, n_planets))
+      s_i, d_i = np.unravel_index(move_idx, (DQN.n_planets, DQN.n_planets))
       return planets[s_i], planets[d_i]  
     
     def state_to_features(self,state):
