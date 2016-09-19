@@ -47,6 +47,7 @@ class PlanetWars:
         return planets, fleets
 
     def play(self):
+        dqnreward = 0
         planets, fleets = self.freeze()
         for view in self.views:
             view.initialize(self.turns_per_second, self.planets, self.map_name, self.player_names)
@@ -70,6 +71,7 @@ class PlanetWars:
         
             # Do the turn
             reward = self.do_turn()
+            dqnreward+=reward
             # Update views
             planets, fleets = self.freeze()
             for view in self.views:
@@ -81,11 +83,9 @@ class PlanetWars:
 
             for i, p in enumerate(self.players):
                 if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
-                    if winner==i:
-                        p.update_memory((planets, fleets), reward+1000, True)
-                    elif winner !=i and winner>0:
+                    if winner>=0:
                         p.update_memory((planets, fleets), reward-1000, True)
-                    elif winner<0:
+                    else:
                         p.update_memory((planets, fleets), reward, False)
                     break
 
@@ -103,7 +103,7 @@ class PlanetWars:
         #     if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
         #         return p.get_memory(), winner, ship_counts, turns, self.time_totals, self.time_max
 
-        return winner, ship_counts, turns, self.time_totals, self.time_max
+        return winner, ship_counts, turns, self.time_totals, self.time_max, dqnreward
 
                 
 

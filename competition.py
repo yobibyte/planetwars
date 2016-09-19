@@ -99,11 +99,11 @@ def main(argv):
           #   else:
           #     memory, winner, ship_counts, turns, tt, tm = game.play()
           # else:
-          winner, ship_counts, turns, tt, tm = game.play()
+          winner, ship_counts, turns, tt, tm, reward = game.play()
           
           
-
-
+          print("DQN bot reward for game is {}".format(reward)) 
+  
           print "%-16s vs. %-16s winner= %d turns= %d" % (p1, p2, winner, turns)
           if winner == 0:
             res[i1][i2] += 0.5

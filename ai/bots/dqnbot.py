@@ -8,6 +8,7 @@ from planetwars.utils import *
 
 from keras.models import Sequential                                             
 from keras.layers import Dense, Activation
+from keras.optimizers import RMSprop
 
 # TODO store only the best src,dst features in the state
 # TODO change input dim to 3d 
@@ -23,14 +24,17 @@ class DQN(object):
     output_dim = 1
 
     model = Sequential()
-    model.add(Dense(100, batch_input_shape=(None, input_dim)))
+    model.add(Dense(256, batch_input_shape=(None, input_dim)))
+    model.add(Activation('relu'))
+    model.add(Dense(256, batch_input_shape=(None, input_dim)))
     model.add(Activation('relu'))
     model.add(Dense(output_dim))
     model.add(Activation('linear'))
-    model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
+    opt = RMSprop(lr=0.00025)
+    model.compile(loss='mse', optimizer=opt, metrics=['accuracy'])
     # model.load_weights("model.h5")
 
-    def __init__(self, eps=0.1, gamma=0.98, bsize=32): 
+    def __init__(self, eps=0.1, gamma=0.9, bsize=32): 
       self.last_state = None
       self.last_action = None
       self.eps = eps
