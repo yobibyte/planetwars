@@ -65,8 +65,8 @@ def main(argv):
         state.random_setup(arguments.p1num, arguments.p2num, arguments.nnum)
       else:
         if len(maps) == 0:
-          # maps = ["map%i" % i for i in range(1, 100)]
-          maps = ["map_toy%i" % i for i in range(1, 10)]
+          maps = ["map%i" % i for i in range(1, 100)]
+          # maps = ["map_toy%i" % i for i in range(1, 10)]
           random.shuffle(maps, random.random)
         map_name = maps.pop()
 

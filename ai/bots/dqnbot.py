@@ -26,7 +26,7 @@ class DQN(object):
     model = Sequential()
     model.add(Dense(256, batch_input_shape=(None, input_dim)))
     model.add(Activation('relu'))
-    model.add(Dense(256, batch_input_shape=(None, input_dim)))
+    model.add(Dense(256))
     model.add(Activation('relu'))
     model.add(Dense(output_dim))
     model.add(Activation('linear'))
