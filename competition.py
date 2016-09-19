@@ -65,8 +65,8 @@ def main(argv):
         state.random_setup(arguments.p1num, arguments.p2num, arguments.nnum)
       else:
         if len(maps) == 0:
-          # maps = ["map%i" % i for i in range(1, 100)]
-          maps = ["map_toy%i" % i for i in range(1, 10)]
+          maps = ["map%i" % i for i in range(1, 100)]
+          # maps = ["map_toy%i" % i for i in range(1, 10)]
           random.shuffle(maps, random.random)
         map_name = maps.pop()
 
@@ -141,6 +141,9 @@ def main(argv):
       
       #sys.stdout.write('.')
       #sys.stdout.flush()
+
+      if gn==arguments.games-1:
+        game.save_weights()
 
     print res
 

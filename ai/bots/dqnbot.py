@@ -18,7 +18,6 @@ class DQN(object):
 
     mem_size=10000
     memory = []
-    counter=0
     
     input_dim = 33
     output_dim = 1
@@ -26,7 +25,8 @@ class DQN(object):
     model = Sequential()
     model.add(Dense(256, batch_input_shape=(None, input_dim)))
     model.add(Activation('relu'))
-    model.add(Dense(256, batch_input_shape=(None, input_dim)))
+    # model.add(Dense(256, batch_input_shape=(None, input_dim)))
+    model.add(Dense(256))
     model.add(Activation('relu'))
     model.add(Dense(output_dim))
     model.add(Activation('linear'))
@@ -39,15 +39,18 @@ class DQN(object):
       self.last_action = None
       self.eps = eps
       self.gamma = gamma
-      self.n_features = 33
       self.bsize = bsize
 
 
     def update_memory(self, new_state, reward, terminal):
-      if len(DQN.memory) == DQN.mem_size:
+
+      if len(DQN.memory)<DQN.mem_size:
+        DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
+      else:
         del DQN.memory[0]
-      DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
-      self.train()
+        DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
+        self.train()
+
 
     def make_features(self, src,dst, pid, total_ships, total_growth, my_ships_total,your_ships_total,neutral_ships_total, my_growth,your_growth,buckets,tally):
 
@@ -181,16 +184,12 @@ class DQN(object):
         if not DQN.memory[m_idx][4]:
           Y[i] = Y[i]+self.gamma*preds[i]
      
-      X = np.zeros((self.bsize, 33))
+      X = np.zeros((self.bsize, DQN.input_dim))
       for i,s in enumerate(sampled_states):
         s_f = self.make_state_features(s[0][0], s[0][1])
         X[i] = np.array(self.make_features(s[1][0], s[1][1], self.pid, *s_f))
       DQN.model.train_on_batch(X, Y)
       
-      DQN.counter+=1
-      if DQN.counter==10000:
-        #DQN.model.save_weights("model.h5", overwrite=True)
-        DQN.counter=0
 
     def __call__(self, turn, pid, planets, fleets):
         self.pid = pid
@@ -204,7 +203,6 @@ class DQN(object):
         self.last_state = (planets, fleets) 
 
         if len(DQN.memory)<DQN.mem_size or random.random() < self.eps:
-          my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
           src, dst = self.make_random_move(my_planets, other_planets)
         else:
           src, dst = self.make_smart_move(planets,fleets, turn, pid)
@@ -216,3 +214,9 @@ class DQN(object):
 
     def done(self, won, turns):
         pass
+
+    def save_weights(self):
+        DQN.model.save_weights("model.h5", overwrite=True)
+
+    def load_weights(self):
+        DQN.model.load_weights("model.h5")
