@@ -66,8 +66,8 @@ def main(argv):
       else:
         if len(maps) == 0:
           # maps = ["map%i" % i for i in range(1, 100)]
-          # random.shuffle(maps, random.random)
-          maps.append("map1_toy")
+          maps = ["map_toy%i" % i for i in range(1, 10)]
+          random.shuffle(maps, random.random)
         map_name = maps.pop()
 
       print "---------"
@@ -93,15 +93,7 @@ def main(argv):
             game = PlanetWars(pair, map_name, collisions=arguments.collisions)
           
 
-          # if players[i1]=="DQN" or players[i2]=="DQN":
-          #   if len(memory)>0:
-          #     memory, winner, ship_counts, turns, tt, tm = game.play(memory=memory)
-          #   else:
-          #     memory, winner, ship_counts, turns, tt, tm = game.play()
-          # else:
           winner, ship_counts, turns, tt, tm = game.play()
-          
-          
 
 
           print "%-16s vs. %-16s winner= %d turns= %d" % (p1, p2, winner, turns)
