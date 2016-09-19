@@ -84,7 +84,7 @@ class PlanetWars:
             for i, p in enumerate(self.players):
                 if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
                     if winner>=0:
-                        p.update_memory((planets, fleets), reward-1000, True)
+                        p.update_memory((planets, fleets), reward, True)
                     else:
                         p.update_memory((planets, fleets), reward, False)
                     break
