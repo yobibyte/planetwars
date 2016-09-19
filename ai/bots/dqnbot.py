@@ -23,11 +23,11 @@ class DQN(object):
     output_dim = 1
 
     model = Sequential()
-    model.add(Dense(30, batch_input_shape=(None, input_dim)))
+    model.add(Dense(100, batch_input_shape=(None, input_dim)))
     model.add(Activation('relu'))
     model.add(Dense(output_dim))
-    model.add(Activation('sigmoid'))
-    model.compile(loss='mse', optimizer='sgd', metrics=['accuracy'])
+    model.add(Activation('linear'))
+    model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
     # model.load_weights("model.h5")
 
     def __init__(self, eps=0.1, gamma=0.98, bsize=32): 
@@ -94,7 +94,6 @@ class DQN(object):
       neutral_ships_total = 0
       my_growth = 0
       your_growth = 0
-      
       for p in planets:
         if p.id == 0:
           neutral_ships_total += p.ships
@@ -136,44 +135,43 @@ class DQN(object):
         general_features = self.make_state_features(y[0], y[1])
         features = []
         srcs, _ = partition(lambda x: x.owner == self.pid, y[0])
+        print(srcs)
         for s in srcs:
           for d in y[0]:
-            #print('QWERQWER',len(self.make_features(s,d, self.pid, *general_features)))
             features.append(self.make_features(s,d, self.pid, *general_features))
-        features = np.array(features)
-        if len(srcs) > 0:
-          preds.append(np.max(DQN.model.predict(features)))
+        if len(features) == 0:
+          preds.append(0) ##DANGEROUS
         else:
-          ### DANGEROUS HERE!
-          preds.append(0)
+          features = np.array(features)
+          preds.append(np.max(DQN.model.predict(features)))
 
       return preds
 
     def train(self):
 
-      inputs = np.zeros((min(len(DQN.memory), self.bsize), DQN.input_dim))
-      targets = np.zeros((inputs.shape[0], DQN.output_dim))
-
+      #DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
       idx = np.random.randint(0, len(DQN.memory), size=self.bsize)
       sampled_states = [DQN.memory[i] for i in idx]
+      
       Y = np.array([DQN.memory[i][3] for i in idx])
       preds = self.Q_approx(np.array([ss[2] for ss in sampled_states]))
       for i, m_idx in enumerate(idx):
         if not DQN.memory[m_idx][4]:
           Y[i] = Y[i]+self.gamma*preds[i]
-
-      # TODO CHECK THE ALGO 
-      for s in sampled_states:
-        DQN.model.train_on_batch(np.array(np.max(self.Q_approx(s[0]), Y)))
+     
+      X = np.zeros((self.bsize, 33))
+      for i,s in enumerate(sampled_states):
+        s_f = self.make_state_features(s[0][0], s[0][1])
+        X[i] = np.array(self.make_features(s[1][0], s[1][1], self.pid, *s_f))
+      DQN.model.train_on_batch(X, Y)
       
       DQN.counter+=1
-      if counter==10000:
+      if DQN.counter==10000:
         DQN.model.save_weights("model.h5", overwrite=True)
         DQN.counter=0
         print counter
 
     def __call__(self, turn, pid, planets, fleets):
-        #### HOHOHOHOH
         self.pid = pid
         self.turn = turn
 
