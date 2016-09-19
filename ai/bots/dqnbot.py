@@ -44,12 +44,10 @@ class DQN(object):
 
 
     def update_memory(self, new_state, reward, terminal):
-      if len(DQN.memory)<DQN.mem_size:
-        DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
-      else:
+      if len(DQN.memory) == DQN.mem_size:
         del DQN.memory[0]
-        DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
-        self.train()
+      DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
+      self.train()
 
     def make_features(self,src,dst, pid, my_ships_total,your_ships_total,neutral_ships_total, my_growth,your_growth,buckets,tally):
 
