@@ -25,7 +25,6 @@ class DQN(object):
     model = Sequential()
     model.add(Dense(256, batch_input_shape=(None, input_dim)))
     model.add(Activation('relu'))
-    # model.add(Dense(256, batch_input_shape=(None, input_dim)))
     model.add(Dense(256))
     model.add(Activation('relu'))
     model.add(Dense(output_dim))
@@ -176,10 +175,10 @@ class DQN(object):
 
       #DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
       idx = np.random.randint(0, len(DQN.memory), size=self.bsize)
-      sampled_states = [DQN.memory[i] for i in idx]
-      
-      Y = np.array([DQN.memory[i][3] for i in idx])
-      preds = self.Q_approx(np.array([ss[2] for ss in sampled_states]))
+      sampled_states = np.array([DQN.memory[i] for i in idx])
+     
+      Y = np.array([s[3] for s in sampled_states]) 
+      preds = self.Q_approx(np.array([s[2] for s in sampled_states]))
       for i, m_idx in enumerate(idx):
         if not DQN.memory[m_idx][4]:
           Y[i] = Y[i]+self.gamma*preds[i]
