@@ -49,22 +49,24 @@ class DQN(object):
       DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
       self.train()
 
-    def make_features(self,src,dst, pid, my_ships_total,your_ships_total,neutral_ships_total, my_growth,your_growth,buckets,tally):
+    def make_features(self, src,dst, pid, total_ships, total_growth, my_ships_total,your_ships_total,neutral_ships_total, my_growth,your_growth,buckets,tally):
 
       fv = []
-      fv.append(src.ships)
-      fv.append(dst.ships)
+      fv.append(src.ships/total_ships)
+      fv.append(dst.ships/total_ships)
       fv.append(my_ships_total)
       fv.append(your_ships_total)
       fv.append(neutral_ships_total)
       fv.append(my_growth)
       fv.append(your_growth)
-      fv.append(math.sqrt((src.x - dst.x)**2 + (src.y - dst.y)**2))
+
+      d = self.dist(src, dst)
+      fv.append(d)
       fv.append(1 if dst.id == pid else 0)
       fv.append(1 if dst.id != 0 and dst.id != pid else 0)
       fv.append(1 if dst.id == 0 else 0)
-      fv.append(src.growth)
-      fv.append(dst.growth)
+      fv.append(src.growth/total_growth)
+      fv.append(dst.growth/total_growth)
       for i in range(buckets):
         fv.append(tally[src.id, i])
       for i in range(buckets):
@@ -84,6 +86,13 @@ class DQN(object):
       move_idx = np.argmax(scores)
       s_i, d_i = np.unravel_index(move_idx, (len(srcs), len(planets)))
       return srcs[s_i], planets[d_i]  
+
+
+    def dist(self, src, dst):
+      dx = src.x - dst.x
+      dy = src.y - dst.y
+      d = math.sqrt(dx*dx + dy*dy)
+      return d
 
     def make_state_features(self, planets, fleets):
 
@@ -109,21 +118,31 @@ class DQN(object):
       max_dist = 0
       for src in planets:
         for dst in planets:
-          d = math.sqrt((src.x - dst.x)**2 + (src.y - dst.y)**2)
+          d = self.dist(src, dst)
           if d > max_dist:
             max_dist = d
 
       tally = np.zeros((len(planets), buckets))
-
+      total_fleets = 0
       for f in fleets:
-        d = dist(planets[f.source], planets[f.destination]) * \
-            (f.remaining_turns/f.total_turns)
+        total_fleets += f.ships
+        d = self.dist(planets[f.source], planets[f.destination]) * (f.remaining_turns/f.total_turns)
         b = d/max_dist * buckets
         if b >= buckets:
           b = buckets-1
         tally[f.destination, b] += f.ships * (1 if f.owner == pid else -1)
 
-      return my_ships_total, your_ships_total, neutral_ships_total, my_growth, your_growth, buckets, tally
+        
+        total_ships = total_fleets+my_ships_total+your_ships_total+neutral_ships_total
+        total_growth = my_growth+your_growth
+        tally /= float(total_ships)
+        my_ships_total /= float(total_ships)
+        your_ships_total /= float(total_ships)
+        neutral_ships_total /= float(total_ships)
+        my_growth /= float(total_growth)
+        your_growth /= float(total_growth)
+
+      return total_ships, total_growth, my_ships_total, your_ships_total, neutral_ships_total, my_growth, your_growth, buckets, tally
 
 
     def make_random_move(self, src, dst):
