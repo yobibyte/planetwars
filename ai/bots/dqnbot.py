@@ -51,22 +51,22 @@ class DQN(object):
         self.train()
 
 
-    def make_features(self, src,dst, pid, total_ships, total_growth, my_ships_total,your_ships_total,neutral_ships_total, my_growth,your_growth,buckets,tally):
+    def make_features(self, src, dst, total_ships, total_growth, my_ships_total,your_ships_total,neutral_ships_total, my_growth,your_growth,buckets,tally):
 
       fv = []
       fv.append(src.ships/float(total_ships))
       fv.append(dst.ships/float(total_ships))
-      fv.append(my_ships_total)
-      fv.append(your_ships_total)
-      fv.append(neutral_ships_total)
-      fv.append(my_growth)
-      fv.append(your_growth)
+      fv.append(my_ships_total/float(total_ships))
+      fv.append(your_ships_total/float(total_ships))
+      # fv.append(neutral_ships_total/float(total_ships))
+      fv.append(my_growth/float(total_growth))
+      fv.append(your_growth/float(total_growth))
 
       d = self.dist(src, dst)
       fv.append(d)
-      fv.append(1 if dst.id == pid else 0)
-      fv.append(1 if dst.id != 0 and dst.id != pid else 0)
-      fv.append(1 if dst.id == 0 else 0)
+      fv.append(1 if dst.owner == self.pid else 0)
+      fv.append(1 if dst.owner != 0 and dst.owner != self.pid else 0)
+      fv.append(1 if dst.owner == 0 else 0)
       fv.append(src.growth/float(total_growth))
       fv.append(dst.growth/float(total_growth))
       for i in range(buckets):
@@ -76,17 +76,21 @@ class DQN(object):
 
       return fv
 
-    def make_smart_move(self, planets, fleets, turn, pid):
+    def make_smart_move(self, planets, fleets, turn):
       general_features = self.make_state_features(planets, fleets)
       features = []
-      srcs, other_planets = partition(lambda x: x.owner == pid, planets)
+      srcs, _ = partition(lambda x: x.owner == self.pid, planets)
 
       for s in srcs:
         for d in planets:
-          features.append(self.make_features(s,d,pid, *general_features))
+          if s==d:
+            continue
+          features.append(self.make_features(s,d, *general_features))
+      
       scores = DQN.model.predict(np.array(features))
       move_idx = np.argmax(scores)
-      s_i, d_i = np.unravel_index(move_idx, (len(srcs), len(planets)))
+      s_i, d_i = np.unravel_index(move_idx, (len(srcs), len(planets)-1))
+
       return srcs[s_i], planets[d_i]  
 
 
@@ -98,21 +102,22 @@ class DQN(object):
 
     def make_state_features(self, planets, fleets):
 
-      pid = self.pid
-      turn = self.turn
       total_ships=0
       total_growth=0
+      total_fleets=0
 
-      buckets = 10
+      buckets = 3
+
       my_ships_total = 0
       your_ships_total = 0
       neutral_ships_total = 0
       my_growth = 0
       your_growth = 0
+
       for p in planets:
-        if p.id == 0:
+        if p.owner == 0:
           neutral_ships_total += p.ships
-        elif p.id == pid:
+        elif p.owner == self.pid:
           my_growth += p.growth
           my_ships_total += p.ships
         else:
@@ -127,24 +132,17 @@ class DQN(object):
             max_dist = d
 
       tally = np.zeros((len(planets), buckets))
-      total_fleets = 0
       for f in fleets:
         total_fleets += f.ships
         d = self.dist(planets[f.source], planets[f.destination]) * (f.remaining_turns/f.total_turns)
         b = d/max_dist * buckets
         if b >= buckets:
           b = buckets-1
-        tally[f.destination, b] += f.ships * (1 if f.owner == pid else -1)
+        tally[f.destination, b] += f.ships * (1 if f.owner == self.pid else -1)
 
-        
       total_ships = total_fleets+my_ships_total+your_ships_total+neutral_ships_total
       total_growth = my_growth+your_growth
       tally /= float(total_ships)
-      my_ships_total /= float(total_ships)
-      your_ships_total /= float(total_ships)
-      neutral_ships_total /= float(total_ships)
-      my_growth /= float(total_growth)
-      your_growth /= float(total_growth)
 
       return total_ships, total_growth, my_ships_total, your_ships_total, neutral_ships_total, my_growth, your_growth, buckets, tally
 
@@ -162,7 +160,10 @@ class DQN(object):
         srcs, _ = partition(lambda x: x.owner == self.pid, y[0])
         for s in srcs:
           for d in y[0]:
-            features.append(self.make_features(s,d, self.pid, *general_features))
+            if s==d:
+              continue
+            features.append(self.make_features(s, d, *general_features))
+        
         if len(features) == 0:
           preds.append(0) ##DANGEROUS
         else:
@@ -177,7 +178,7 @@ class DQN(object):
       idx = np.random.randint(0, len(DQN.memory), size=self.bsize)
       sampled_states = np.array([DQN.memory[i] for i in idx])
      
-      Y = np.array([s[3] for s in sampled_states]) 
+      Y = np.array([s[3] for s in sampled_states])
       preds = self.Q_approx(np.array([s[2] for s in sampled_states]))
       for i, m_idx in enumerate(idx):
         if not DQN.memory[m_idx][4]:
@@ -186,14 +187,14 @@ class DQN(object):
       X = np.zeros((self.bsize, DQN.input_dim))
       for i,s in enumerate(sampled_states):
         s_f = self.make_state_features(s[0][0], s[0][1])
-        X[i] = np.array(self.make_features(s[1][0], s[1][1], self.pid, *s_f))
+        X[i] = np.array(self.make_features(s[1][0], s[1][1], *s_f))
+
       DQN.model.train_on_batch(X, Y)
       
 
     def __call__(self, turn, pid, planets, fleets):
         self.pid = pid
         self.turn = turn
-
   
         my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
         if len(my_planets) == 0 or len(other_planets) == 0:
@@ -201,10 +202,10 @@ class DQN(object):
                
         self.last_state = (planets, fleets) 
 
-        if len(DQN.memory)<DQN.mem_size or random.random() < self.eps:
+        if len(DQN.memory)<DQN.mem_size or random.random()<self.eps:
           src, dst = self.make_random_move(my_planets, other_planets)
         else:
-          src, dst = self.make_smart_move(planets,fleets, turn, pid)
+          src, dst = self.make_smart_move(planets,fleets, turn)
 
         #self.eps *= 0.98
         self.last_action = (src, dst)

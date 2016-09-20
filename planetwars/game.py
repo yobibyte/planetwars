@@ -57,10 +57,6 @@ class PlanetWars:
         next_turn = time.time() + self.turn_duration
         winner = -1
 
-        # for i, p in enumerate(self.players):
-        #     if str(p).split()[0]=='<ai.bots.dqnbot.DQN' and memory is not None:
-        #         p.set_memory(memory)
-        #         break
 
         while winner < 0:
             # Wait until time has passed
@@ -99,9 +95,6 @@ class PlanetWars:
             except AttributeError:
                 pass
 
-        # for i, p in enumerate(self.players):
-        #     if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
-        #         return p.get_memory(), winner, ship_counts, turns, self.time_totals, self.time_max
 
         return winner, ship_counts, turns, self.time_totals, self.time_max, dqnreward
 
@@ -165,7 +158,6 @@ class PlanetWars:
         for planet in self.planets:
             planet.battle([fleet for fleet in arrived_fleets if fleet.destination == planet])
             new_owner = planet.owner
-
 
             for i, p in enumerate(self.players):
                 if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
