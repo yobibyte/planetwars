@@ -56,11 +56,11 @@ class DQN(object):
       fv = []
       fv.append(src.ships/float(total_ships))
       fv.append(dst.ships/float(total_ships))
-      fv.append(my_ships_total/float(total_ships))
-      fv.append(your_ships_total/float(total_ships))
-      # fv.append(neutral_ships_total/float(total_ships))
-      fv.append(my_growth/float(total_growth))
-      fv.append(your_growth/float(total_growth))
+      fv.append(my_ships_total)
+      fv.append(your_ships_total)
+      fv.append(neutral_ships_total)
+      fv.append(my_growth)
+      fv.append(your_growth)
 
       d = self.dist(src, dst)
       fv.append(d)
@@ -106,7 +106,7 @@ class DQN(object):
       total_growth=0
       total_fleets=0
 
-      buckets = 3
+      buckets = 10
 
       my_ships_total = 0
       your_ships_total = 0
@@ -143,6 +143,11 @@ class DQN(object):
       total_ships = total_fleets+my_ships_total+your_ships_total+neutral_ships_total
       total_growth = my_growth+your_growth
       tally /= float(total_ships)
+      my_ships_total /= float(total_ships)
+      your_ships_total /= float(total_ships)
+      neutral_ships_total /= float(total_ships)
+      my_growth /= float(total_growth)
+      your_growth /= float(total_growth)
 
       return total_ships, total_growth, my_ships_total, your_ships_total, neutral_ships_total, my_growth, your_growth, buckets, tally
 
