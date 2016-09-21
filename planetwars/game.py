@@ -38,6 +38,15 @@ class PlanetWars:
         self.turn = turn
         self.collisions = collisions
 
+
+        for i, p in enumerate(self.players):
+            if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
+                self.DQN_id=i
+                self.DQN_player=p
+                break
+
+        
+
     def add_view(self, view):
         self.views.append(view)
 
@@ -47,6 +56,7 @@ class PlanetWars:
         return planets, fleets
 
     def play(self):
+
         dqnreward = 0
         planets, fleets = self.freeze()
         for view in self.views:
@@ -56,7 +66,7 @@ class PlanetWars:
         self.time_max    = [0 for i in range(len(self.players))]
         next_turn = time.time() + self.turn_duration
         winner = -1
-
+        self.temp_mem = []
 
         while winner < 0:
             # Wait until time has passed
@@ -76,14 +86,22 @@ class PlanetWars:
             winner, ship_counts, turns = self.gameover()
             # print winner, ship_counts, turns
 
+            # for i, p in enumerate(self.players):
+            #     if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
+            #         if winner>=0:
+            #             p.update_memory((planets, fleets), reward, True)
+            #         else:
+            #             p.update_memory((planets, fleets), reward, False)
+            #         break
 
-            for i, p in enumerate(self.players):
-                if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
-                    if winner>=0:
-                        p.update_memory((planets, fleets), reward, True)
-                    else:
-                        p.update_memory((planets, fleets), reward, False)
-                    break
+
+            for tm in self.temp_mem:
+                if tm[6]:
+                    tm[4] = True if winner>=0 else False
+                    tm[2] = (planets, fleets)
+                    self.DQN_player.update_memory(*tm)
+                    self.temp_mem.remove(tm)
+            
 
 
         for view in self.views:
@@ -108,6 +126,7 @@ class PlanetWars:
         planets, fleets = self.freeze()
         player_orders = []
 
+
         for i, player in enumerate(self.players):
           prev = time.time()
           player_orders.append(player(self.turn, i, planets, fleets))
@@ -118,17 +137,27 @@ class PlanetWars:
 
         self.turn += 1
 
+
+        reward=0
+        for plt in planets:
+            if plt.owner == self.DQN_id:
+                reward += plt.growth
+                
         # Departure
         for player, orders in enumerate(player_orders):
 #          print "turn", self.turn, "player:", player, "orders:", orders
           for order in orders:
-            self.issue_order(player, order)
+            self.issue_order(player, order, planets, fleets, reward)
+
 
         # Advancement
         for planet in self.planets:
             planet.generate_ships()
         for fleet in self.fleets:
             fleet.advance()
+        for tm in self.temp_mem:
+            tm[5] = tm[5]-1 if not tm[6] else tm[5]
+
 
         # Collisions do before advancement?
         if self.collisions:
@@ -157,26 +186,46 @@ class PlanetWars:
         arrived_fleets, self.fleets = partition(lambda fleet: fleet.has_arrived(), self.fleets)
         for planet in self.planets:
             planet.battle([fleet for fleet in arrived_fleets if fleet.destination == planet])
-            new_owner = planet.owner
+            # new_owner = planet.owner
 
-            for i, p in enumerate(self.players):
-                if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
-                    if new_owner==i:
-                        reward += planet.growth
-                    else:
-                        reward -= planet.growth
+            # for i, p in enumerate(self.players):
+            #     if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
+            #         if new_owner==i:
+            #             reward += planet.growth
+            #         elif old_owner==i:
+            #             reward -= planet.growth
+
+            if planet.owner == self.DQN_id:
+                reward += planet.growth
+
+        for tm in self.temp_mem:
+            if tm[5]<=0:
+                tm[6] = True
+                if tm[3]==0:
+                    tm[3]=1
+                tm[3] = 1 if (reward/tm[3])>=1 else 0
+
 
         return reward
 
-    def issue_order(self, player, order):
+    def issue_order(self, player, order, planets, fleets, reward):
         if order.source.owner != player:
             raise Exception("Player %d issued an order from enemy planet %d." % (player, order.source.id))
         source = self.planets[order.source.id]
         ships = int(min(order.ships, source.ships))
         if ships > 0:
+            self.temp_mem.append([(planets, fleets)])
+
             destination = self.planets[order.destination.id]
             source.ships -= ships
             self.fleets.append(Fleet(player, ships, source, destination))
+
+            self.temp_mem[-1].append((source, destination))
+            self.temp_mem[-1].append(0)
+            self.temp_mem[-1].append(reward)
+            self.temp_mem[-1].append(False)
+            self.temp_mem[-1].append(self.fleets[-1].total_turns)
+            self.temp_mem[-1].append(False)
 
     # old code
     #
@@ -255,16 +304,10 @@ class PlanetWars:
       return False
 
     def save_weights(self):
-        for i, p in enumerate(self.players):
-            if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
-                p.save_weights()
-                break
+        self.DQN_player.save_weights()
 
     def load_weights(self):
-        for i, p in enumerate(self.players):
-            if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
-                p.load_weights()
-                break
+        self.DQN_player.load_weights()
 
 
                 

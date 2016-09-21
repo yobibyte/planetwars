@@ -20,20 +20,26 @@ class DQN(object):
     memory = []
     
     input_dim = 33
+    # input_dim = 19
     output_dim = 1
 
     model = Sequential()
     model.add(Dense(256, batch_input_shape=(None, input_dim)))
+    # model.add(Dense(64, batch_input_shape=(None, input_dim)))
     model.add(Activation('relu'))
     model.add(Dense(256))
+    # model.add(Dense(64))
     model.add(Activation('relu'))
     model.add(Dense(output_dim))
-    model.add(Activation('linear'))
+    # model.add(Activation('linear'))
+    model.add(Activation('sigmoid'))
     opt = RMSprop(lr=0.00025)
+    # opt = RMSprop(lr=0.0025)
     model.compile(loss='mse', optimizer=opt, metrics=['accuracy'])
     # model.load_weights("model.h5")
 
-    def __init__(self, eps=0.1, gamma=0.9, bsize=32): 
+    # def __init__(self, eps=0.1, gamma=0.9, bsize=32): 
+    def __init__(self, eps=0.5, gamma=0.9, bsize=32):
       self.last_state = None
       self.last_action = None
       self.eps = eps
@@ -41,13 +47,16 @@ class DQN(object):
       self.bsize = bsize
 
 
-    def update_memory(self, new_state, reward, terminal):
+    # def update_memory(self, new_state, reward, terminal):
+    def update_memory(self, old_state, action, new_state, reward, terminal, d, dn):
 
       if len(DQN.memory)<DQN.mem_size:
-        DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
+        # DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
+        DQN.memory.append([old_state, action, new_state, reward, terminal])
       else:
         del DQN.memory[0]
-        DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
+        # DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
+        DQN.memory.append([old_state, action, new_state, reward, terminal])
         self.train()
 
 
@@ -61,9 +70,7 @@ class DQN(object):
       fv.append(neutral_ships_total)
       fv.append(my_growth)
       fv.append(your_growth)
-
-      d = self.dist(src, dst)
-      fv.append(d)
+      fv.append(self.dist(src, dst))
       fv.append(1 if dst.owner == self.pid else 0)
       fv.append(1 if dst.owner != 0 and dst.owner != self.pid else 0)
       fv.append(1 if dst.owner == 0 else 0)
@@ -107,6 +114,7 @@ class DQN(object):
       total_fleets=0
 
       buckets = 10
+      # buckets = 3
 
       my_ships_total = 0
       your_ships_total = 0
@@ -142,6 +150,7 @@ class DQN(object):
 
       total_ships = total_fleets+my_ships_total+your_ships_total+neutral_ships_total
       total_growth = my_growth+your_growth
+
       tally /= float(total_ships)
       my_ships_total /= float(total_ships)
       your_ships_total /= float(total_ships)
@@ -187,7 +196,8 @@ class DQN(object):
       preds = self.Q_approx(np.array([s[2] for s in sampled_states]))
       for i, m_idx in enumerate(idx):
         if not DQN.memory[m_idx][4]:
-          Y[i] = Y[i]+self.gamma*preds[i]
+          # Y[i] = Y[i]+self.gamma*preds[i]
+          Y[i] = (Y[i]+self.gamma*preds[i])/2.0
      
       X = np.zeros((self.bsize, DQN.input_dim))
       for i,s in enumerate(sampled_states):
@@ -205,15 +215,17 @@ class DQN(object):
         if len(my_planets) == 0 or len(other_planets) == 0:
           return []
                
-        self.last_state = (planets, fleets) 
+        # self.last_state = (planets, fleets) 
 
         if len(DQN.memory)<DQN.mem_size or random.random()<self.eps:
           src, dst = self.make_random_move(my_planets, other_planets)
+          self.eps = self.eps*0.999 if self.eps>0.1 else 0.1
         else:
           src, dst = self.make_smart_move(planets,fleets, turn)
+        
+        # src, dst = self.make_smart_move(planets,fleets, turn)
 
-        #self.eps *= 0.98
-        self.last_action = (src, dst)
+        # self.last_action = (src, dst)
         
         return [Order(src, dst, src.ships/2)]
 
