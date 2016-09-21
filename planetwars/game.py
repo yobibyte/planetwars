@@ -135,13 +135,24 @@ class PlanetWars:
           if t > self.time_max[i]:
             self.time_max[i] = t
 
-        self.turn += 1
 
-
-        reward=0
+        reward_g=0
+        reward_s=0
         for plt in planets:
             if plt.owner == self.DQN_id:
-                reward += plt.growth
+                reward_g += plt.growth
+                reward_s += plt.ships
+            elif plt.owner>0  and plt.owner!=self.DQN_id:
+                reward_g -= plt.growth
+                reward_s -= plt.ships
+        
+        for f in fleets:
+            reward_s += f.ships * (1 if f.owner==self.DQN_id else -1)
+
+        reward = reward_g*(200-self.turn)+reward_s
+
+
+        self.turn += 1
                 
         # Departure
         for player, orders in enumerate(player_orders):
@@ -181,7 +192,8 @@ class PlanetWars:
                 if not fleet.destroy:
                     self.fleets.append( fleet )
 
-        reward=0
+        reward_g=0
+        reward_s=0
         # Arrival
         arrived_fleets, self.fleets = partition(lambda fleet: fleet.has_arrived(), self.fleets)
         for planet in self.planets:
@@ -196,14 +208,24 @@ class PlanetWars:
             #             reward -= planet.growth
 
             if planet.owner == self.DQN_id:
-                reward += planet.growth
+                reward_g += planet.growth
+                reward_s += planet.ships
+            elif planet.owner>0 and planet.owner!=self.DQN_id:
+                reward_g -= planet.growth
+                reward_s -= planet.ships
+
+        
+        for f in self.fleets:
+            reward_s += f.ships * (1 if f.owner==self.DQN_id else -1)
+
+        reward = reward_g*(200-self.turn)+reward_s
 
         for tm in self.temp_mem:
             if tm[5]<=0:
                 tm[6] = True
                 if tm[3]==0:
                     tm[3]=1
-                tm[3] = 1 if (reward/tm[3])>=1 else 0
+                tm[3] = 1 if reward>=tm[3] else 0
 
 
         return reward
