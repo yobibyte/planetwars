@@ -93,6 +93,9 @@ def main(argv):
             game = PlanetWars(pair, map_name, collisions=arguments.collisions)
           
 
+          # if gn==0:
+          #   game.load_weights()
+
           winner, ship_counts, turns, tt, tm, reward = game.play()
           
           print("DQN bot reward for game is {}".format(reward)) 
@@ -142,7 +145,7 @@ def main(argv):
       #sys.stdout.write('.')
       #sys.stdout.flush()
 
-      if gn==arguments.games-1:
+      if (gn+1)%1000==0:
         game.save_weights()
 
     print res
