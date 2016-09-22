@@ -16,7 +16,7 @@ from keras.optimizers import RMSprop
 @planetwars_class
 class DQN(object):
 
-    mem_size=10000
+    mem_size=1
     memory = []
     
     input_dim = 33
@@ -143,24 +143,21 @@ class DQN(object):
       return random.choice(src), random.choice(dst)
     
     def Q_approx(self, sampled):
-      preds = []
       sp_idx = []
+      features = []
       for y in sampled:
         general_features = self.make_state_features(y[0], y[1])
-        features = []
         srcs, _ = partition(lambda x: x.owner == self.pid, y[0])
         for s in srcs:
           for d in y[0]:
             if s!=d:
               features.append(self.make_features(s, d, *general_features))
             else:
-              append(np.zeros(33)) 
+              features.append(np.zeros(33)) 
         
-        c_i = 0
-        if(len(sp_idx)==0):
-          c_i = s*d
-        else:
-          c_i = s*d+sp_idx[-1]
+        c_i = len(srcs)*len(y[0])
+        if(len(sp_idx)!=0):
+          c_i += sp_idx[-1]
 
         if len(features) == 0:
             features.append(np.zeros(33))
@@ -168,11 +165,11 @@ class DQN(object):
               c_i=1
             else:
               c_i=sp_idx[-1]+1            
-        sp_idx.append(c_i)            
+        sp_idx.append(c_i)  
+          
       features = np.array(features)
-      preds = append(np.max(DQN.model.predict(features)))
-      preds = np.split(preds, sp_idx)
-      return np.max(preds, axis=1)
+      preds = np.split(DQN.model.predict(features), sp_idx[:-1])
+      return np.array([np.max(r) for r in preds])
 
     def train(self):
       #DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
@@ -181,7 +178,7 @@ class DQN(object):
  
       rewards = np.array([s[3] for s in sampled_states])    
       terms = np.array([s[4] for s in sampled_states])
-      Y = self.gamma*self.Q_approx(np.array([s[3] for s in sampled_states]))+terms*rewards  
+      Y = self.gamma*self.Q_approx(np.array([s[2] for s in sampled_states]))+terms*rewards  
       X = np.zeros((self.bsize, DQN.input_dim))
       for i,s in enumerate(sampled_states):
         s_f = self.make_state_features(s[0][0], s[0][1])
