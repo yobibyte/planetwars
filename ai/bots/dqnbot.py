@@ -16,7 +16,7 @@ from keras.optimizers import RMSprop
 @planetwars_class
 class DQN(object):
 
-    mem_size=1
+    mem_size=10000
     memory = []
     
     input_dim = 33
@@ -154,17 +154,19 @@ class DQN(object):
               features.append(self.make_features(s, d, *general_features))
             else:
               features.append(np.zeros(33)) 
-        
+       
+ 
         c_i = len(srcs)*len(y[0])
-        if(len(sp_idx)!=0):
-          c_i += sp_idx[-1]
+  
+        if c_i == 0:
+          c_i = 1  
+          features.append(np.zeros(33))
+          if(len(sp_idx)>0):
+            c_i=sp_idx[-1]+1            
+        else:
+          if(len(sp_idx)!=0):
+            c_i += sp_idx[-1]
 
-        if len(features) == 0:
-            features.append(np.zeros(33))
-            if(len(sp_idx)==0):
-              c_i=1
-            else:
-              c_i=sp_idx[-1]+1            
         sp_idx.append(c_i)  
           
       features = np.array(features)
@@ -178,7 +180,7 @@ class DQN(object):
  
       rewards = np.array([s[3] for s in sampled_states])    
       terms = np.array([s[4] for s in sampled_states])
-      Y = self.gamma*self.Q_approx(np.array([s[2] for s in sampled_states]))+terms*rewards  
+      Y = self.gamma*self.Q_approx([s[2] for s in sampled_states])+terms*rewards  
       X = np.zeros((self.bsize, DQN.input_dim))
       for i,s in enumerate(sampled_states):
         s_f = self.make_state_features(s[0][0], s[0][1])
@@ -199,7 +201,7 @@ class DQN(object):
 
         if len(DQN.memory)<DQN.mem_size or random.random()<self.eps:
           src, dst = self.make_random_move(my_planets, other_planets)
-          self.eps = self.eps*0.999 if self.eps>0.1 else 0.1
+          #self.eps = self.eps*0.999 if self.eps>0.1 else 0.1
         else:
           src, dst = self.make_smart_move(planets,fleets, turn)
         
