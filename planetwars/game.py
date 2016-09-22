@@ -87,16 +87,16 @@ class PlanetWars:
             # print winner, ship_counts, turns
 
             
-            if winner > 0:
+            if winner >= 0:
                 if winner == self.DQN_id or winner == 0:
-                    dqnreward = 1
+                    reward = 1
                 else:
-                    dqnreward = -1
-                self.DQN_player.update_memory((planets, fleets), reward-1, True)
+                    reward = -1
+                self.DQN_player.update_memory((planets, fleets), reward, True)
             else:
-                dqnreward = -1
-                self.DQN_player.update_memory((planets, fleets), dqnreward, False)
-
+                reward += -1
+                self.DQN_player.update_memory((planets, fleets), reward, False)
+            dqnreward+=reward
 
             # for tm in self.temp_mem:
             #     if tm[6]:
