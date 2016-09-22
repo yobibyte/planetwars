@@ -16,7 +16,7 @@ from keras.optimizers import RMSprop
 @planetwars_class
 class DQN(object):
 
-    mem_size=10000
+    mem_size=100
     memory = []
     
     input_dim = 33
@@ -147,27 +147,18 @@ class DQN(object):
       for y in sampled:
         general_features = self.make_state_features(y[0], y[1])
         srcs, _ = partition(lambda x: x.owner == self.pid, y[0])
+        features.append(np.zeros(33)) #like do nothign
         for s in srcs:
           for d in y[0]:
             if s!=d:
               features.append(self.make_features(s, d, *general_features))
             else:
               features.append(np.zeros(33)) 
-       
- 
-        c_i = len(srcs)*len(y[0])
-  
-        if c_i == 0:
-          c_i = 1  
-          features.append(np.zeros(33))
-          if(len(sp_idx)>0):
-            c_i=sp_idx[-1]+1            
-        else:
-          if(len(sp_idx)!=0):
-            c_i += sp_idx[-1]
-
+        c_i = len(srcs)*len(y[0])+1
+        if(len(sp_idx)!=0):
+          c_i += sp_idx[-1]
         sp_idx.append(c_i)  
-          
+      print(sp_idx)
       features = np.array(features)
       preds = np.split(DQN.model.predict(features), sp_idx[:-1])
       return np.array([np.max(r) for r in preds])
@@ -175,16 +166,15 @@ class DQN(object):
     def train(self):
       #DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
       idx = np.random.randint(0, len(DQN.memory), size=self.bsize)
-      sampled_states = np.array([DQN.memory[i] for i in idx])
- 
-      rewards = np.array([s[3] for s in sampled_states])    
+      sampled_states = sorted([DQN.memory[i] for i in idx], key=lambda s: s[4])
       terms = np.array([s[4] for s in sampled_states])
-      Y = self.gamma*self.Q_approx([s[2] for s in sampled_states])*terms+rewards  
+      n_nonterms = self.bsize - np.sum(terms)
+      Y = np.array([s[3] for s in sampled_states])    
+      Y[:n_nonterms] += self.gamma*self.Q_approx([s[2] for s in sampled_states[:n_nonterms]])  
       X = np.zeros((self.bsize, DQN.input_dim))
       for i,s in enumerate(sampled_states):
         s_f = self.make_state_features(s[0][0], s[0][1])
         X[i] = np.array(self.make_features(s[1][0], s[1][1], *s_f))
-
       DQN.model.train_on_batch(X, Y)
       
 
