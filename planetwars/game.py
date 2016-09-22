@@ -86,21 +86,24 @@ class PlanetWars:
             winner, ship_counts, turns = self.gameover()
             # print winner, ship_counts, turns
 
-            # for i, p in enumerate(self.players):
-            #     if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
-            #         if winner>=0:
-            #             p.update_memory((planets, fleets), reward, True)
-            #         else:
-            #             p.update_memory((planets, fleets), reward, False)
-            #         break
+            
+            if winner > 0:
+                if winner == self.DQN_id:
+                    self.DQN_player.update_memory((planets, fleets), reward+1, True)
+                elif winner == 0:
+                    self.DQN_player.update_memory((planets, fleets), reward+0.1, True)
+                else:
+                    self.DQN_player.update_memory((planets, fleets), reward-1, True)
+            else:
+                self.DQN_player.update_memory((planets, fleets), reward-0.1, False)
 
 
-            for tm in self.temp_mem:
-                if tm[6]:
-                    tm[4] = True if winner>=0 else False
-                    tm[2] = (planets, fleets)
-                    self.DQN_player.update_memory(*tm)
-                    self.temp_mem.remove(tm)
+            # for tm in self.temp_mem:
+            #     if tm[6]:
+            #         tm[4] = True if winner>=0 else False
+            #         tm[2] = (planets, fleets)
+            #         self.DQN_player.update_memory(*tm)
+            #         self.temp_mem.remove(tm)
             
 
 
@@ -149,7 +152,9 @@ class PlanetWars:
         for f in fleets:
             reward_s += f.ships * (1 if f.owner==self.DQN_id else -1)
 
-        reward = reward_g*(200-self.turn)+reward_s
+        beta = reward_s*0.2
+        alpha = (1-self.turn/200)*beta
+        reward = reward_g*alpha+reward_s
 
 
         self.turn += 1
@@ -166,8 +171,8 @@ class PlanetWars:
             planet.generate_ships()
         for fleet in self.fleets:
             fleet.advance()
-        for tm in self.temp_mem:
-            tm[5] = tm[5]-1 if not tm[6] else tm[5]
+        # for tm in self.temp_mem:
+        #     tm[5] = tm[5]-1 if not tm[6] else tm[5]
 
 
         # Collisions do before advancement?
@@ -198,14 +203,6 @@ class PlanetWars:
         arrived_fleets, self.fleets = partition(lambda fleet: fleet.has_arrived(), self.fleets)
         for planet in self.planets:
             planet.battle([fleet for fleet in arrived_fleets if fleet.destination == planet])
-            # new_owner = planet.owner
-
-            # for i, p in enumerate(self.players):
-            #     if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
-            #         if new_owner==i:
-            #             reward += planet.growth
-            #         elif old_owner==i:
-            #             reward -= planet.growth
 
             if planet.owner == self.DQN_id:
                 reward_g += planet.growth
@@ -213,22 +210,23 @@ class PlanetWars:
             elif planet.owner>0 and planet.owner!=self.DQN_id:
                 reward_g -= planet.growth
                 reward_s -= planet.ships
-
         
         for f in self.fleets:
             reward_s += f.ships * (1 if f.owner==self.DQN_id else -1)
 
-        reward = reward_g*(200-self.turn)+reward_s
+        beta = reward_s*0.2
+        alpha = (1-self.turn/200)*beta
+        next_reward = reward_g*alpha+reward_s
 
-        for tm in self.temp_mem:
-            if tm[5]<=0:
-                tm[6] = True
-                if tm[3]==0:
-                    tm[3]=1
-                tm[3] = 1 if reward>=tm[3] else 0
+        # for tm in self.temp_mem:
+        #     if tm[5]<=0:
+        #         tm[6] = True
+        #         if tm[3]==0:
+        #             tm[3]=1
+        #         tm[3] = 1 if reward>=tm[3] else 0
 
-
-        return reward
+        # reward =0
+        return next_reward/reward
 
     def issue_order(self, player, order, planets, fleets, reward):
         if order.source.owner != player:
@@ -236,18 +234,18 @@ class PlanetWars:
         source = self.planets[order.source.id]
         ships = int(min(order.ships, source.ships))
         if ships > 0:
-            self.temp_mem.append([(planets, fleets)])
+            # self.temp_mem.append([(planets, fleets)])
 
             destination = self.planets[order.destination.id]
             source.ships -= ships
             self.fleets.append(Fleet(player, ships, source, destination))
 
-            self.temp_mem[-1].append((source, destination))
-            self.temp_mem[-1].append(0)
-            self.temp_mem[-1].append(reward)
-            self.temp_mem[-1].append(False)
-            self.temp_mem[-1].append(self.fleets[-1].total_turns)
-            self.temp_mem[-1].append(False)
+            # self.temp_mem[-1].append((source, destination))
+            # self.temp_mem[-1].append(0)
+            # self.temp_mem[-1].append(reward)
+            # self.temp_mem[-1].append(False)
+            # self.temp_mem[-1].append(self.fleets[-1].total_turns)
+            # self.temp_mem[-1].append(False)
 
     # old code
     #
