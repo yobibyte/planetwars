@@ -177,10 +177,10 @@ class DQN(object):
       # memory structure: last_state, last_action, new_state, reward, terminal
       idx = np.random.randint(0, len(DQN.memory), size=self.bsize)
       sampled_states = np.array([DQN.memory[i] for i in idx])
-     
+ 
+      rewards = np.array([s[3] for s in sampled_states])    
       terms = np.array([s[4] for s in sampled_states])
-      Y = self.Q_approx(np.array([s[3] for s in sampled_states]))*terms
-      Y *= self.gamma*preds
+      Y = self.gamma*self.Q_approx(np.array([s[3] for s in sampled_states]))+terms*rewards
   
       X = np.zeros((self.bsize, DQN.input_dim))
       for i,s in enumerate(sampled_states):
