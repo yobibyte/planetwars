@@ -225,7 +225,8 @@ class PlanetWars:
         #             tm[3]=1
         #         tm[3] = 1 if reward>=tm[3] else 0
 
-        # reward =0
+        if reward == 0:
+            reward = 1
         return next_reward/reward
 
     def issue_order(self, player, order, planets, fleets, reward):
