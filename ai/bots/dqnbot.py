@@ -107,7 +107,7 @@ class DQN(object):
       move_idx = np.argmax(scores[1:])
 
       if move_idx>scores[0]:
-        s_i, d_i = np.unravel_index(move_idx, (len(srcs), len(planets)))
+        s_i, d_i = np.unravel_index(move_idx-1, (len(srcs), len(planets)))
         return srcs[s_i], planets[d_i]  
       else:
         return None, None
