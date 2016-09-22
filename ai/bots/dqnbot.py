@@ -49,31 +49,54 @@ class DQN(object):
 
 
     def make_features(self, src, dst, total_ships, total_growth, my_ships_total,your_ships_total,neutral_ships_total, my_growth,your_growth,buckets,tally):
-      fv = []
-      fv.append(src.ships/float(total_ships))
-      fv.append(dst.ships/float(total_ships))
-      fv.append(my_ships_total)
-      fv.append(your_ships_total)
-      fv.append(neutral_ships_total)
-      fv.append(my_growth)
-      fv.append(your_growth)
-      fv.append(dist(src, dst))
-      fv.append(1 if dst.owner == self.pid else 0)
-      fv.append(1 if dst.owner != 0 and dst.owner != self.pid else 0)
-      fv.append(1 if dst.owner == 0 else 0)
-      fv.append(src.growth/float(total_growth))
-      fv.append(dst.growth/float(total_growth))
-      for i in range(buckets):
-        fv.append(tally[src.id, i])
-      for i in range(buckets):
-        fv.append(tally[dst.id, i])
+      if not(src==None and dst==None):
+        fv = []
+        fv.append(src.ships/float(total_ships))
+        fv.append(dst.ships/float(total_ships))
+        fv.append(my_ships_total)
+        fv.append(your_ships_total)
+        fv.append(neutral_ships_total)
+        fv.append(my_growth)
+        fv.append(your_growth)
+        fv.append(dist(src, dst))
+        fv.append(1 if dst.owner == self.pid else 0)
+        fv.append(1 if dst.owner != 0 and dst.owner != self.pid else 0)
+        fv.append(1 if dst.owner == 0 else 0)
+        fv.append(src.growth/float(total_growth))
+        fv.append(dst.growth/float(total_growth))
+        for i in range(buckets):
+          fv.append(tally[src.id, i])
+        for i in range(buckets):
+          fv.append(tally[dst.id, i])
+        return fv
 
-      return fv
+      else:
+        fv = []
+        fv.append(0)
+        fv.append(0)
+        fv.append(my_ships_total)
+        fv.append(your_ships_total)
+        fv.append(neutral_ships_total)
+        fv.append(my_growth)
+        fv.append(your_growth)
+        fv.append(0)
+        fv.append(0)
+        fv.append(0)
+        fv.append(0)
+        fv.append(0)
+        fv.append(0)
+        for i in range(buckets):
+          fv.append(0)
+        for i in range(buckets):
+          fv.append(0)
+        return fv
 
     def make_smart_move(self, planets, fleets, turn):
       general_features = self.make_state_features(planets, fleets)
       features = []
       srcs, _ = partition(lambda x: x.owner == self.pid, planets)
+      
+      features.append(self.make_features(None,None, *general_features))
       for s in srcs:
         for d in planets:
           if s!=d:
@@ -81,10 +104,13 @@ class DQN(object):
           else:
             features.append(np.zeros(33)) 
       scores = DQN.model.predict(np.array(features))
-      move_idx = np.argmax(scores)
-      s_i, d_i = np.unravel_index(move_idx, (len(srcs), len(planets)))
+      move_idx = np.argmax(scores[1:])
 
-      return srcs[s_i], planets[d_i]  
+      if move_idx>scores[0]:
+        s_i, d_i = np.unravel_index(move_idx, (len(srcs), len(planets)))
+        return srcs[s_i], planets[d_i]  
+      else:
+        return None, None
 
     def make_state_features(self, planets, fleets):
 
@@ -147,7 +173,8 @@ class DQN(object):
       for y in sampled:
         general_features = self.make_state_features(y[0], y[1])
         srcs, _ = partition(lambda x: x.owner == self.pid, y[0])
-        features.append(np.zeros(33)) #like do nothign
+        # features.append(np.zeros(33)) #like do nothign
+        features.append(self.make_features(None, None, *general_features))
         for s in srcs:
           for d in y[0]:
             if s!=d:
@@ -196,6 +223,9 @@ class DQN(object):
         
         self.last_action = (src, dst)
         
+        if src==None and dst==None:
+          return []
+
         return [Order(src, dst, src.ships/2)]
 
     def done(self, won, turns):
