@@ -145,7 +145,7 @@ def main(argv):
       #sys.stdout.write('.')
       #sys.stdout.flush()
 
-      if (gn+1)%1000==0:
+      if (gn+1)%1000==0 or gn==arguments.games-1:
         game.save_weights()
 
     print res

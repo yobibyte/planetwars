@@ -162,26 +162,6 @@ class DQN(object):
       preds = np.split(DQN.model.predict(features), sp_idx[:-1])
       return np.array([np.max(r) for r in preds])
 
-    # def Q_approx(self, sampled):
-    #   preds = []
-    #   for y in sampled:
-    #     general_features = self.make_state_features(y[0], y[1])
-    #     features = []
-    #     srcs, _ = partition(lambda x: x.owner == self.pid, y[0])
-    #     for s in srcs:
-    #       for d in y[0]:
-    #         if s==d:
-    #           continue
-    #         features.append(self.make_features(s, d, *general_features))
-        
-    #     if len(features) == 0:
-    #       preds.append(0) ##DANGEROUS
-    #     else:
-    #       features = np.array(features)
-    #       preds.append(np.max(DQN.model.predict(features)))
-
-    #   return preds
-
 
     def train(self):
       #DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
