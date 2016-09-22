@@ -33,8 +33,8 @@ class DQN(object):
     model.add(Dense(output_dim))
     # model.add(Activation('linear'))
     model.add(Activation('sigmoid'))
-    opt = RMSprop(lr=0.00025)
-    # opt = RMSprop(lr=0.0025)
+    # opt = RMSprop(lr=0.00025)
+    opt = RMSprop(lr=0.0025)
     model.compile(loss='mse', optimizer=opt, metrics=['accuracy'])
     # model.load_weights("model.h5")
 

@@ -149,7 +149,9 @@ class PlanetWars:
         for f in fleets:
             reward_s += f.ships * (1 if f.owner==self.DQN_id else -1)
 
-        reward = reward_g*(200-self.turn)+reward_s
+        beta = reward_s*0.2
+        alpha = (1-self.turn/200)*beta
+        reward = reward_g*alpha+reward_s
 
 
         self.turn += 1
@@ -218,7 +220,9 @@ class PlanetWars:
         for f in self.fleets:
             reward_s += f.ships * (1 if f.owner==self.DQN_id else -1)
 
-        reward = reward_g*(200-self.turn)+reward_s
+        beta = reward_s*0.2
+        alpha = (1-self.turn/200)*beta
+        reward = reward_g*alpha+reward_s
 
         for tm in self.temp_mem:
             if tm[5]<=0:
