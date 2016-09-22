@@ -76,8 +76,8 @@ class PlanetWars:
             next_turn += self.turn_duration
         
             # Do the turn
-            reward = self.do_turn()
-            dqnreward+=reward
+            self.do_turn()
+            
             # Update views
             planets, fleets = self.freeze()
             for view in self.views:
@@ -88,14 +88,14 @@ class PlanetWars:
 
             
             if winner > 0:
-                if winner == self.DQN_id:
-                    self.DQN_player.update_memory((planets, fleets), reward+1, True)
-                elif winner == 0:
-                    self.DQN_player.update_memory((planets, fleets), reward+0.1, True)
+                if winner == self.DQN_id or winner == 0:
+                    dqnreward = 1
                 else:
-                    self.DQN_player.update_memory((planets, fleets), reward-1, True)
+                    dqnreward = -1
+                self.DQN_player.update_memory((planets, fleets), reward-1, True)
             else:
-                self.DQN_player.update_memory((planets, fleets), reward-0.1, False)
+                dqnreward = -1
+                self.DQN_player.update_memory((planets, fleets), dqnreward, False)
 
 
             # for tm in self.temp_mem:
