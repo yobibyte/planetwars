@@ -20,7 +20,6 @@ class DQN(object):
     memory = []
     
     input_dim = 33
-    # input_dim = 19
     output_dim = 1
 
     model = Sequential()
@@ -42,7 +41,7 @@ class DQN(object):
       self.bsize = bsize
 
 
-    def update_memory(self, old_state, action, new_state, reward, terminal, d, dn):
+    def update_memory(self, new_state, reward, terminal, d, dn):
       DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
       if len(DQN.memory) > DQN.mem_size:
         del DQN.memory[0]
@@ -175,12 +174,12 @@ class DQN(object):
       return np.max(preds, axis=1)
 
     def train(self):
-      #DQN.memory.append([self.last_state, self.last_action, new_state, reward, terminal])
+      # memory structure: last_state, last_action, new_state, reward, terminal
       idx = np.random.randint(0, len(DQN.memory), size=self.bsize)
       sampled_states = np.array([DQN.memory[i] for i in idx])
      
       terms = np.array([s[4] for s in sampled_states])
-      Y = np.array([s[3] for s in sampled_states])*terms
+      Y = self.Q_approx(np.array([s[3] for s in sampled_states]))*terms
       Y *= self.gamma*preds
   
       X = np.zeros((self.bsize, DQN.input_dim))
@@ -203,7 +202,7 @@ class DQN(object):
 
         if len(DQN.memory)<DQN.mem_size or random.random()<self.eps:
           src, dst = self.make_random_move(my_planets, other_planets)
-          self.eps = self.eps*0.999 if self.eps>0.1 else 0.1
+          #self.eps = self.eps*0.999 if self.eps>0.1 else 0.1
         else:
           src, dst = self.make_smart_move(planets,fleets, turn)
         
