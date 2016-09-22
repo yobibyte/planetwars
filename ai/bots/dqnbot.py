@@ -16,7 +16,7 @@ from keras.optimizers import RMSprop
 @planetwars_class
 class DQN(object):
 
-    mem_size=100
+    mem_size=10000
     memory = []
     
     input_dim = 33
@@ -158,7 +158,6 @@ class DQN(object):
         if(len(sp_idx)!=0):
           c_i += sp_idx[-1]
         sp_idx.append(c_i)  
-      print(sp_idx)
       features = np.array(features)
       preds = np.split(DQN.model.predict(features), sp_idx[:-1])
       return np.array([np.max(r) for r in preds])
