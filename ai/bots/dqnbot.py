@@ -39,6 +39,7 @@ class DQN(object):
       self.eps = eps
       self.gamma = gamma
       self.bsize = bsize
+      self.tips = 0.0
 
 
     def update_memory(self, new_state, reward, terminal):
@@ -91,26 +92,43 @@ class DQN(object):
           fv.append(0)
         return fv
 
-    def make_smart_move(self, planets, fleets, turn):
-      general_features = self.make_state_features(planets, fleets)
-      features = []
-      srcs, _ = partition(lambda x: x.owner == self.pid, planets)
-      
-      features.append(self.make_features(None,None, *general_features))
-      for s in srcs:
-        for d in planets:
-          if s!=d:
-            features.append(self.make_features(s,d, *general_features))
-          else:
-            features.append(np.zeros(DQN.input_dim)) 
-      scores = DQN.model.predict(np.array(features))
-      move_idx = np.argmax(scores[1:])
 
-      if move_idx>scores[0]:
-        s_i, d_i = np.unravel_index(move_idx, (len(srcs), len(planets)))
-        return srcs[s_i], planets[d_i]  
+    def make_smart_move(self, planets, fleets):
+
+      if random.random()<self.tips:
+        self.tips *= 0.999
+
+        my_planets, other_planets = partition(lambda x: x.owner == self.pid, planets)
+        src = max(my_planets, key=get_ships)
+        dst = max(other_planets, key=hint)
+
+        s_f = self.make_state_features(planets, fleets)
+        self.last_state = self.make_features(src, dst, *s_f)
+
+        return src, dst
+
+
       else:
-        return None, None
+        general_features = self.make_state_features(planets, fleets)
+        features = []
+        srcs, _ = partition(lambda x: x.owner == self.pid, planets)
+        features.append(self.make_features(None,None, *general_features))
+        for s in srcs:
+          for d in planets:
+            if s!=d:
+              features.append(self.make_features(s,d, *general_features))
+            else:
+              features.append(np.zeros(DQN.input_dim)) 
+        scores = DQN.model.predict(np.array(features))
+        move_idx = np.argmax(scores[1:])
+
+        if move_idx>scores[0]:
+          s_i, d_i = np.unravel_index(move_idx, (len(srcs), len(planets)))
+          self.last_state = features[move_idx+1]
+          return srcs[s_i], planets[d_i]  
+        else:
+          self.last_state = features[0]
+          return None, None
 
     def make_state_features(self, planets, fleets):
 
@@ -202,8 +220,9 @@ class DQN(object):
 
       X = np.zeros((self.bsize, DQN.input_dim))
       for i,s in enumerate(sampled_states):
-        s_f = self.make_state_features(s[0][0], s[0][1])
-        X[i] = np.array(self.make_features(s[1][0], s[1][1], *s_f))
+      #   s_f = self.make_state_features(s[0][0], s[0][1])
+        # X[i] = np.array(self.make_features(s[1][0], s[1][1], *s_f))
+        X[i] = np.array(s[0])
       DQN.model.train_on_batch(X, Y)
 
     def __call__(self, turn, pid, planets, fleets):
@@ -214,12 +233,12 @@ class DQN(object):
         if len(my_planets) == 0 or len(other_planets) == 0:
           return []
                
-        self.last_state = (planets, fleets) 
+        # self.last_state = (planets, fleets) 
 
         if len(DQN.memory)<DQN.mem_size or random.random()<self.eps:
           src, dst = self.make_random_move(my_planets, other_planets)
         else:
-          src, dst = self.make_smart_move(planets,fleets, turn)
+          src, dst = self.make_smart_move(planets,fleets)
         
         self.last_action = (src, dst)
         
