@@ -188,19 +188,19 @@ class PlanetWars:
         reward_g=0
         reward_s=0
         
-        reward_g = sum([plt.growth for plt in planets if plt.owner==self.DQN_id])
-        reward_g -= sum([plt.growth for plt in planets if plt.owner!=self.DQN_id and plt.owner!=0])
+        # reward_g = sum([plt.growth for plt in planets if plt.owner==self.DQN_id])
+        # reward_g -= sum([plt.growth for plt in planets if plt.owner!=self.DQN_id and plt.owner!=0])
         
-        # reward_ps = sum([plt.ships for plt in planets if plt.owner==self.DQN_id])
-        # reward_ps -= sum([plt.ships for plt in planets if plt.owner!=self.DQN_id and plt.owner!=0])
+        reward_ps = sum([plt.ships for plt in planets if plt.owner==self.DQN_id])
+        reward_ps -= sum([plt.ships for plt in planets if plt.owner!=self.DQN_id and plt.owner!=0])
         
-        # reward_fs = sum([f.ships for f in fleets if f.owner==self.DQN_id])
-        # reward_fs -= sum([f.ships for f in fleets if f.owner!=self.DQN_id])
+        reward_fs = sum([f.ships for f in fleets if f.owner==self.DQN_id])
+        reward_fs -= sum([f.ships for f in fleets if f.owner!=self.DQN_id])
 
         # alpha = (1-self.turn/200)*reward_ps*0.3
 
         # return reward_g*alpha+reward_ps+reward_fs
-        return reward_g/float(self.turn+1)
+        return reward_ps+reward_fs
 
     def issue_order(self, player, order):
         if order.source.owner != player:
