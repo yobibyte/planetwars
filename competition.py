@@ -14,6 +14,11 @@ def print_planets(planets):
     print "%3d" % p.id, "%6.2f" % p.x, "%6.2f" % p.y, p.owner, "%4d" % p.ships, "%3d" % p.growth
 
 def main(argv):
+
+    stats = []
+    win_ctr=turns_ctr=r_ctr=0
+
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--collisions', action='store_true', required=False, default=False,
                         help="Should the ships collide with each other?")
@@ -92,11 +97,13 @@ def main(argv):
           else:
             game = PlanetWars(pair, map_name, collisions=arguments.collisions)
           
-
           # if gn==0:
           #   game.load_weights()
 
           winner, ship_counts, turns, tt, tm, reward = game.play()
+
+          turns_ctr+=turns
+          r_ctr+=reward
           
           print("DQN bot reward for game is {}".format(reward)) 
   
@@ -105,6 +112,7 @@ def main(argv):
             res[i1][i2] += 0.5
             res[i2][i1] += 0.5
           elif winner == 1:
+            win_ctr += 1
             res[i1][i2] += 1
             res[i2][i1] += 0
           else:
@@ -148,7 +156,23 @@ def main(argv):
       if (gn+1)%1000==0 or gn==arguments.games-1:
         game.save_weights()
 
+
+      if (gn+1)%1000==0:
+        stats.append(str(win_ctr/10.0)+"\t\t"+str(turns_ctr/1000.0)+"\t\t"+str(r_ctr/1000.0))
+        win_ctr=turns_ctr=r_ctr=0
+
+
     print res
+
+    file = open("stats", 'w')
+    file.write("win(%)\t\tturns/game\treward/game\n")
+    for i in range((arguments.games+1)/1000):
+      file.write(stats[i])
+      file.write("\n")
+    file.close()
+
+
+    
 
 if __name__ == '__main__':
     import sys
