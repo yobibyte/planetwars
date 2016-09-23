@@ -157,16 +157,15 @@ def main(argv):
         game.save_weights()
 
 
-      if (gn+1)%1000==0:
-        stats.append(str(win_ctr/10.0)+"\t\t"+str(turns_ctr/1000.0)+"\t\t"+str(r_ctr/1000.0))
+      if (gn+1)%100==0:
+        stats.append(str(win_ctr)+"\t\t"+str(turns_ctr/100.0)+"\t\t"+str(r_ctr/100.0))
         win_ctr=turns_ctr=r_ctr=0
-
 
     print res
 
     file = open("stats", 'w')
     file.write("win(%)\t\tturns/game\treward/game\n")
-    for i in range((arguments.games+1)/1000):
+    for i in range((arguments.games)/100):
       file.write(stats[i])
       file.write("\n")
     file.close()
