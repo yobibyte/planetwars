@@ -132,14 +132,7 @@ class PlanetWars:
             self.time_max[i] = t
 
 
-        reward_g=0
-        reward_s=0
-        reward_g = sum([plt.growth for plt in planets if plt.owner==self.DQN_id])
-        reward_s = sum([plt.ships for plt in planets if plt.owner==self.DQN_id])
-        reward_s = reward_s + sum([f.ships for f in fleets if f.owner==self.DQN_id])
-        beta = reward_s*0.2
-        alpha = (1-self.turn/200)*beta
-        reward = reward_g*alpha+reward_s-200/(1+len([p for p in planets if p.owner-self.DQN_id]))
+        reward = self.compute_reward(self.planets, self.fleets)
 
 
         self.turn += 1
@@ -186,18 +179,27 @@ class PlanetWars:
         for planet in self.planets:
             planet.battle([fleet for fleet in arrived_fleets if fleet.destination == planet])
 
-        reward_g=0
-        reward_s=0
-        reward_g = sum([plt.growth for plt in planets if plt.owner==self.DQN_id])
-        reward_s = sum([plt.ships for plt in planets if plt.owner==self.DQN_id])
-        reward_s = reward_s + sum([f.ships for f in fleets if f.owner==self.DQN_id])
-        beta = reward_s*0.2
-        alpha = (1-self.turn/200)*beta
-        next_reward = reward_g*alpha+reward_s-200/(1+len([p for p in planets if p.owner-self.DQN_id]))
+        next_reward = self.compute_reward(self.planets, self.fleets)
 
         return next_reward - reward
 
 
+    def compute_reward(self, planets, fleets):
+        reward_g=0
+        reward_s=0
+        
+        reward_g = sum([plt.growth for plt in planets if plt.owner==self.DQN_id])
+        reward_g -= sum([plt.growth for plt in planets if plt.owner!=self.DQN_id and plt.owner!=0])
+        
+        reward_ps = sum([plt.ships for plt in planets if plt.owner==self.DQN_id])
+        reward_ps -= sum([plt.ships for plt in planets if plt.owner!=self.DQN_id and plt.owner!=0])
+        
+        reward_fs = sum([f.ships for f in fleets if f.owner==self.DQN_id])
+        reward_fs -= sum([f.ships for f in fleets if f.owner!=self.DQN_id])
+
+        alpha = (1-self.turn/200)*reward_ps*0.3
+
+        return reward_g*alpha+reward_ps+reward_fs
 
     def issue_order(self, player, order):
         if order.source.owner != player:
