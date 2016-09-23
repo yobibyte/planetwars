@@ -193,7 +193,7 @@ class PlanetWars:
         reward_s = reward_s + sum([f.ships for f in fleets if f.owner==self.DQN_id])
         beta = reward_s*0.2
         alpha = (1-self.turn/200)*beta
-        next_reward = reward_g*alpha+reward_s
+        next_reward = reward_g*alpha+reward_s-200/(1+len([p for p in planets if p.owner-self.DQN_id]))
 
         return next_reward - reward
 
