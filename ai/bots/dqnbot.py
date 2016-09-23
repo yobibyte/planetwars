@@ -19,13 +19,13 @@ class DQN(object):
     mem_size=10000
     memory = []
     
-    input_dim = 33
+    input_dim = 19
     output_dim = 1
 
     model = Sequential()
-    model.add(Dense(256, batch_input_shape=(None, input_dim)))
+    model.add(Dense(100, batch_input_shape=(None, input_dim)))
     model.add(Activation('relu'))
-    model.add(Dense(256))
+    model.add(Dense(100))
     model.add(Activation('relu'))
     model.add(Dense(output_dim))
     model.add(Activation('linear'))
@@ -118,7 +118,7 @@ class DQN(object):
       total_growth=0
       total_fleets=0
 
-      buckets = 10
+      buckets = 3
       my_ships_total = 0
       your_ships_total = 0
       neutral_ships_total = 0

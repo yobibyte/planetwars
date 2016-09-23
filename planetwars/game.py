@@ -15,7 +15,7 @@ class PlanetWars:
     maps = load_all_maps()
 
     def __init__(self, players, map_name=None, planets=None, fleets=None,
-                                turns_per_second=1000000, turn=0, collisions=False):
+                                turns_per_second=None, turn=0, collisions=False):
         if len(players) < 2:
             raise Exception("A game requires at least two players.")
         self.player_names = players
@@ -139,7 +139,7 @@ class PlanetWars:
         reward_s = reward_s + sum([f.ships for f in fleets if f.owner==self.DQN_id])
         beta = reward_s*0.2
         alpha = (1-self.turn/200)*beta
-        reward = reward_g*alpha+reward_s
+        reward = reward_g*alpha+reward_s-200/(1+len([p for p in planets if p.owner-self.DQN_id]))
 
 
         self.turn += 1
