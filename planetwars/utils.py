@@ -16,6 +16,13 @@ def get_ships(planet_or_fleet):
 def get_growth(planet):
     return planet.growth
 
+def hint(planet):
+    temp = planet.ships
+    if temp==0:
+        temp=0.1
+    return planet.growth/temp
+
+
 def partition(predicate, ls):
     yes = []
     no = []
