@@ -200,7 +200,7 @@ class PlanetWars:
         # alpha = (1-self.turn/200)*reward_ps*0.3
 
         # return reward_g*alpha+reward_ps+reward_fs
-        return reward_ps+reward_fs
+        return float(reward_ps+reward_fs)
 
     def issue_order(self, player, order):
         if order.source.owner != player:
