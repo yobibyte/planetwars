@@ -15,7 +15,7 @@ class PlanetWars:
     maps = load_all_maps()
 
     def __init__(self, players, map_name=None, planets=None, fleets=None,
-                                turns_per_second=None, turn=0, collisions=False):
+                                turns_per_second=1000000, turn=0, collisions=False):
         if len(players) < 2:
             raise Exception("A game requires at least two players.")
         self.player_names = players
@@ -77,7 +77,7 @@ class PlanetWars:
             next_turn += self.turn_duration
         
             # Do the turn
-            self.do_turn()
+            reward = self.do_turn()
             
             # Update views
             planets, fleets = self.freeze()
@@ -89,13 +89,13 @@ class PlanetWars:
 
             
             if winner >= 0:
-                if winner == self.DQN_id or winner == 0:
-                    reward = 1
-                else:
-                    reward = -1
+                # if winner == self.DQN_id or winner == 0:
+                #     reward = 1
+                # else:
+                #     reward = -1
                 self.DQN_player.update_memory((planets, fleets), reward, True)
             else:
-                reward = -0.1
+                # reward = -0.1
                 self.DQN_player.update_memory((planets, fleets), reward, False)
             dqnreward+=reward
 
@@ -132,22 +132,14 @@ class PlanetWars:
             self.time_max[i] = t
 
 
-        # reward_g=0
-        # reward_s=0
-        # for plt in planets:
-        #     if plt.owner == self.DQN_id:
-        #         reward_g += plt.growth
-        #         reward_s += plt.ships
-        #     elif plt.owner>0  and plt.owner!=self.DQN_id:
-        #         reward_g -= plt.growth
-        #         reward_s -= plt.ships
-        
-        # for f in fleets:
-        #     reward_s += f.ships * (1 if f.owner==self.DQN_id else -1)
-
-        # beta = reward_s*0.2
-        # alpha = (1-self.turn/200)*beta
-        # reward = reward_g*alpha+reward_s
+        reward_g=0
+        reward_s=0
+        reward_g = sum([plt.growth for plt in planets if plt.owner==self.DQN_id])
+        reward_s = sum([plt.ships for plt in planets if plt.owner==self.DQN_id])
+        reward_s = reward_s + sum([f.ships for f in fleets if f.owner==self.DQN_id])
+        beta = reward_s*0.2
+        alpha = (1-self.turn/200)*beta
+        reward = reward_g*alpha+reward_s
 
 
         self.turn += 1
@@ -188,31 +180,24 @@ class PlanetWars:
                 if not fleet.destroy:
                     self.fleets.append( fleet )
 
-        # reward_g=0
-        # reward_s=0
+
         # Arrival
         arrived_fleets, self.fleets = partition(lambda fleet: fleet.has_arrived(), self.fleets)
         for planet in self.planets:
             planet.battle([fleet for fleet in arrived_fleets if fleet.destination == planet])
 
-        #     if planet.owner == self.DQN_id:
-        #         reward_g += planet.growth
-        #         reward_s += planet.ships
-        #     elif planet.owner>0 and planet.owner!=self.DQN_id:
-        #         reward_g -= planet.growth
-        #         reward_s -= planet.ships
-        
-        # for f in self.fleets:
-        #     reward_s += f.ships * (1 if f.owner==self.DQN_id else -1)
+        reward_g=0
+        reward_s=0
+        reward_g = sum([plt.growth for plt in planets if plt.owner==self.DQN_id])
+        reward_s = sum([plt.ships for plt in planets if plt.owner==self.DQN_id])
+        reward_s = reward_s + sum([f.ships for f in fleets if f.owner==self.DQN_id])
+        beta = reward_s*0.2
+        alpha = (1-self.turn/200)*beta
+        next_reward = reward_g*alpha+reward_s
 
-        # beta = reward_s*0.2
-        # alpha = (1-self.turn/200)*beta
-        # next_reward = reward_g*alpha+reward_s
+        return next_reward - reward
 
 
-        # if reward == 0:
-        #     reward = 1
-        # return next_reward/reward
 
     def issue_order(self, player, order):
         if order.source.owner != player:

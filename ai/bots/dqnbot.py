@@ -102,7 +102,7 @@ class DQN(object):
           if s!=d:
             features.append(self.make_features(s,d, *general_features))
           else:
-            features.append(np.zeros(33)) 
+            features.append(np.zeros(DQN.input_dim)) 
       scores = DQN.model.predict(np.array(features))
       move_idx = np.argmax(scores[1:])
 
@@ -173,14 +173,14 @@ class DQN(object):
       for y in sampled:
         general_features = self.make_state_features(y[0], y[1])
         srcs, _ = partition(lambda x: x.owner == self.pid, y[0])
-        # features.append(np.zeros(33)) #like do nothign
+
         features.append(self.make_features(None, None, *general_features))
         for s in srcs:
           for d in y[0]:
             if s!=d:
               features.append(self.make_features(s, d, *general_features))
             else:
-              features.append(np.zeros(33)) 
+              features.append(np.zeros(DQN.input_dim)) 
         c_i = len(srcs)*len(y[0])+1
         if(len(sp_idx)!=0):
           c_i += sp_idx[-1]
