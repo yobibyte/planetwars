@@ -195,8 +195,8 @@ class PlanetWars:
         reward_es = sum([plt.ships for plt in planets if plt.owner!=self.DQN_id and plt.owner!=0])
         reward_es += sum([f.ships for f in fleets if f.owner!=self.DQN_id])
         
-        reward_g /= float(reward_eg) if reward_eg!=0 else 1.0
-        reward_s /= float(reward_es) if reward_es!=0 else 1.0
+        reward_g /= float(reward_eg+reward_g)
+        reward_s /= float(reward_es+reward_s)
 
         return reward_g*(1-self.turn/200)+reward_s
 
