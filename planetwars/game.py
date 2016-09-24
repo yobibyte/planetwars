@@ -198,7 +198,7 @@ class PlanetWars:
         reward_g /= float(reward_eg+reward_g)
         reward_s /= float(reward_es+reward_s)
 
-        return reward_g*(1-self.turn/200)+reward_s
+        return reward_g*(1-self.turn/200.0)+reward_s
 
     def issue_order(self, player, order):
         if order.source.owner != player:
@@ -206,7 +206,6 @@ class PlanetWars:
         source = self.planets[order.source.id]
         ships = int(min(order.ships, source.ships))
         if ships > 0:
-
             destination = self.planets[order.destination.id]
             source.ships -= ships
             self.fleets.append(Fleet(player, ships, source, destination))
