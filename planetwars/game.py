@@ -47,7 +47,7 @@ class PlanetWars:
             else:
                 self.another_bot_id = i
 
-        if self.DQN_player.counter>10000:
+        if self.DQN_player.counter>=10000:
             self.DQN_player.reset_Q()
             PlanetWars.epoch_ctr += 1
         

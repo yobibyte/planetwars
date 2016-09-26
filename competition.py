@@ -61,7 +61,7 @@ def main(argv):
     time_totals = numpy.zeros((len(players)))    
 
     maps = []
-    
+    temp = 0
     for gn in range(arguments.games):
       n = gn+1
       state = State()
@@ -70,8 +70,8 @@ def main(argv):
         state.random_setup(arguments.p1num, arguments.p2num, arguments.nnum)
       else:
         if len(maps) == 0:
-          # maps = ["map%i" % i for i in range(1, 100)]
-          maps = ["map_toy%i" % i for i in range(1, 10)]
+          maps = ["map%i" % i for i in range(1, 100)]
+          # maps = ["map_toy%i" % i for i in range(1, 10)]
           random.shuffle(maps, random.random)
         map_name = maps.pop()
 
@@ -104,7 +104,7 @@ def main(argv):
 
           turns_ctr += turns
           r_ctr+= reward
-          win_ctr += 1 if winner==1 else 0
+          
           
           print("DQN bot reward for game is {}".format(reward))
           print("Another bot reward for game is {}".format(reward_e)) 
@@ -114,6 +114,7 @@ def main(argv):
             res[i1][i2] += 0.5
             res[i2][i1] += 0.5
           elif winner == 1:
+            win_ctr += 1
             res[i1][i2] += 1
             res[i2][i1] += 0
           else:
@@ -155,11 +156,13 @@ def main(argv):
       #sys.stdout.flush()
 
       if counter>=10000:
-        n_g = gn - n_g + 1.0
+
+        n_g = (gn - n_g + 1.0 if temp==0 else float(gn - temp))
         stats.append(str(win_ctr/n_g)+"\t"+str(turns_ctr/n_g)+"\t"+str(r_ctr/n_g)+"\t"+str(qv/float(qv_ctr)))
         win_ctr=turns_ctr=r_ctr=0
+        temp = gn
 
-      if PlanetWars.epoch_ctr%10==0 or gn==arguments.games-1:
+      # if PlanetWars.epoch_ctr%10==0 or gn==arguments.games-1:
         game.save_weights()
         file = open("stats", 'w')
         file.write("win\tturns/game\treward/game\taverage Q value\n")
