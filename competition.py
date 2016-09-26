@@ -14,6 +14,11 @@ def print_planets(planets):
     print "%3d" % p.id, "%6.2f" % p.x, "%6.2f" % p.y, p.owner, "%4d" % p.ships, "%3d" % p.growth
 
 def main(argv):
+
+    stats = []
+    win_ctr=turns_ctr=r_ctr=counter=n_g=qv=qv_ctr=0
+
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--collisions', action='store_true', required=False, default=False,
                         help="Should the ships collide with each other?")
@@ -65,8 +70,8 @@ def main(argv):
         state.random_setup(arguments.p1num, arguments.p2num, arguments.nnum)
       else:
         if len(maps) == 0:
-          maps = ["map%i" % i for i in range(1, 100)]
-          # maps = ["map_toy%i" % i for i in range(1, 10)]
+          # maps = ["map%i" % i for i in range(1, 100)]
+          maps = ["map_toy%i" % i for i in range(1, 10)]
           random.shuffle(maps, random.random)
         map_name = maps.pop()
 
@@ -92,13 +97,17 @@ def main(argv):
           else:
             game = PlanetWars(pair, map_name, collisions=arguments.collisions)
           
-
           # if gn==0:
           #   game.load_weights()
 
-          winner, ship_counts, turns, tt, tm, reward = game.play()
+          winner, ship_counts, turns, tt, tm, reward, reward_e, counter, qv, qv_ctr = game.play()
+
+          turns_ctr += turns
+          r_ctr+= reward
+          win_ctr += 1 if winner==1 else 0
           
-          print("DQN bot reward for game is {}".format(reward)) 
+          print("DQN bot reward for game is {}".format(reward))
+          print("Another bot reward for game is {}".format(reward_e)) 
   
           print "%-16s vs. %-16s winner= %d turns= %d" % (p1, p2, winner, turns)
           if winner == 0:
@@ -145,10 +154,22 @@ def main(argv):
       #sys.stdout.write('.')
       #sys.stdout.flush()
 
-      if (gn+1)%1000==0:
+      if counter>=10000:
+        n_g = gn - n_g + 1.0
+        stats.append(str(win_ctr/n_g)+"\t"+str(turns_ctr/n_g)+"\t"+str(r_ctr/n_g)+"\t"+str(qv/float(qv_ctr)))
+        win_ctr=turns_ctr=r_ctr=0
+
+      if PlanetWars.epoch_ctr%10==0 or gn==arguments.games-1:
         game.save_weights()
+        file = open("stats", 'w')
+        file.write("win\tturns/game\treward/game\taverage Q value\n")
+        for i in range(len(stats)):
+          file.write(stats[i])
+          file.write("\n")
+        file.close()
 
     print res
+    
 
 if __name__ == '__main__':
     import sys
