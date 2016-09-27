@@ -31,11 +31,12 @@ class DQN(object):
     model.add(Activation('relu'))
     model.add(Dense(output_dim))
     model.add(Activation('linear'))
-    opt = RMSprop(lr=0.0025)
+    # opt = RMSprop(lr=0.0025)
     model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
-    # model.load_weights("model.h5")
+    # model.load_weights("model_pretrained_with_random.h5")
     # model.load_weights("model_heuristic_2000.h5")
-    # model.load_weights("model_evolved_1000.h5")
+    # model.load_weights("model_3000.h5")
+    # model.load_weights("model_vs_evol_1000.h5")
 
 
     def __init__(self, eps=0.1, gamma=0.9, bsize=32): 
@@ -62,6 +63,23 @@ class DQN(object):
         del DQN.memory[0]
         self.train()
 
+
+    def update_memory_twice(self, last_state, action, new_state, reward, reward_e, terminal):
+
+      DQN.memory.append([self.last_state, (new_state, 2), reward, terminal])
+      if len(DQN.memory) > DQN.mem_size:
+        del DQN.memory[0]
+        self.train()
+
+
+      self.pid = 1
+      general_features = self.make_state_features(*last_state)
+      self.last_state = self.make_features(action[0],action[1], *general_features)
+
+      DQN.memory.append([self.last_state, (new_state, 1), reward_e, terminal])
+      if len(DQN.memory) > DQN.mem_size:
+        del DQN.memory[0]
+        self.train()
 
     def make_state_features(self, planets, fleets):
 

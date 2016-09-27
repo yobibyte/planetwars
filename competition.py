@@ -156,13 +156,13 @@ def main(argv):
       #sys.stdout.flush()
 
       if counter>=10000:
-
         n_g = (gn - n_g + 1.0 if temp==0 else float(gn - temp))
         stats.append(str(win_ctr/n_g)+"\t"+str(turns_ctr/n_g)+"\t"+str(r_ctr/n_g)+"\t"+str(qv/float(qv_ctr)))
+        PlanetWars.exploit = True if win_ctr/ng > 0.45 else False
         win_ctr=turns_ctr=r_ctr=0
         temp = gn
 
-      # if PlanetWars.epoch_ctr%10==0 or gn==arguments.games-1:
+      if PlanetWars.epoch_ctr%10==0 or gn==arguments.games-1:
         game.save_weights()
         file = open("stats", 'w')
         file.write("win\tturns/game\treward/game\taverage Q value\n")
