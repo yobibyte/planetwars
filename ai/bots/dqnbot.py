@@ -21,7 +21,7 @@ class DQN(object):
     Q_v = 0
     Q_v_ctr = 0
     
-    input_dim = 19
+    input_dim = 33
     output_dim = 1
 
     model = Sequential()
@@ -34,9 +34,11 @@ class DQN(object):
     # opt = RMSprop(lr=0.0025)
     model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
     # model.load_weights("model_pretrained_with_random.h5")
-    # model.load_weights("model_heuristic_2000.h5")
+    # model.load_weights("model.h5")
     # model.load_weights("model_3000.h5")
     # model.load_weights("model_vs_evol_1000.h5")
+
+    selftrain = False
 
 
     def __init__(self, eps=0.1, gamma=0.9, bsize=32): 
@@ -45,7 +47,12 @@ class DQN(object):
       self.eps = eps
       self.gamma = gamma
       self.bsize = bsize
+      
+    def get_memory(self, selftrain):
+      return DQN.memory if not selftrain else self.memory
 
+    def get_model(self, selftrain):
+      return DQN.model if not selftrain else self.model
 
     def switch(self):
       self.pid = 1 if self.pid==2 else 2
@@ -58,28 +65,47 @@ class DQN(object):
         general_features = self.make_state_features(*last_state)
         self.last_state = self.make_features(action[0],action[1], *general_features)
 
-      DQN.memory.append([self.last_state, (new_state, r_id), reward, terminal])        
-      if len(DQN.memory) > DQN.mem_size:
-        del DQN.memory[0]
+
+      self.get_memory(DQN.selftrain).append([self.last_state, (new_state, r_id), reward, terminal])
+      if len(self.get_memory(DQN.selftrain)) > DQN.mem_size:
+        del self.get_memory(DQN.selftrain)[0]
         self.train()
 
 
-    def update_memory_twice(self, last_state, action, new_state, reward, reward_e, terminal):
+    # def update_memory_twice(self, last_state, action, new_state, reward, reward_e, terminal):
 
-      DQN.memory.append([self.last_state, (new_state, 2), reward, terminal])
-      if len(DQN.memory) > DQN.mem_size:
-        del DQN.memory[0]
-        self.train()
+    #   DQN.memory.append([self.last_state, (new_state, 2), reward, terminal])
+    #   if len(DQN.memory) > DQN.mem_size:
+    #     del DQN.memory[0]
+    #     self.train()
 
 
-      self.pid = 1
-      general_features = self.make_state_features(*last_state)
-      self.last_state = self.make_features(action[0],action[1], *general_features)
+    #   self.pid = 1
+    #   general_features = self.make_state_features(*last_state)
+    #   self.last_state = self.make_features(action[0],action[1], *general_features)
 
-      DQN.memory.append([self.last_state, (new_state, 1), reward_e, terminal])
-      if len(DQN.memory) > DQN.mem_size:
-        del DQN.memory[0]
-        self.train()
+    #   DQN.memory.append([self.last_state, (new_state, 1), reward_e, terminal])
+    #   if len(DQN.memory) > DQN.mem_size:
+    #     del DQN.memory[0]
+    #     self.train()
+
+    # def update_memory_dd(self, *args):
+    #   for i in range(len(args)):
+    #     self.update_memory(*args[i])
+
+    def local_model(self):
+      self.memory = []
+      self.model = Sequential()
+      self.model.add(Dense(100, batch_input_shape=(None, DQN.input_dim)))
+      self.model.add(Activation('relu'))
+      self.model.add(Dense(100))
+      self.model.add(Activation('relu'))
+      self.model.add(Dense(DQN.output_dim))
+      self.model.add(Activation('linear'))
+      self.model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
+      self.model.load_weights("model.h5")
+      DQN.selftrain = True
+
 
     def make_state_features(self, planets, fleets):
 
@@ -87,7 +113,7 @@ class DQN(object):
       total_growth=0
       total_fleets=0
 
-      buckets = 3
+      buckets = 10
       my_ships_total = 0
       your_ships_total = 0
       neutral_ships_total = 0
@@ -187,12 +213,13 @@ class DQN(object):
         for d in planets:
           features.append(self.make_features(s,d, *general_features))
  
-      scores = DQN.model.predict(np.array(features))
+
+      scores = self.get_model(DQN.selftrain).predict(np.array(features))
+
       
       move_idx = np.argmax(scores)
       self.last_state = features[move_idx]
       s_i, d_i = np.unravel_index(move_idx, (len(srcs), len(planets)))
-
 
       DQN.Q_v += np.max(scores)
       DQN.Q_v_ctr += 1
@@ -233,14 +260,14 @@ class DQN(object):
         sp_idx.append(c_i)  
 
       features = np.array(features)
-      preds = np.split(DQN.model.predict(features), sp_idx[:-1])
+      preds = np.split(self.get_model(DQN.selftrain).predict(features), sp_idx[:-1])
       return np.array([np.max(r) for r in preds])
 
 
     def train(self):
       #DQN.memory.append([self.last_state, new_state, reward, terminal])
-      idx = np.random.randint(0, len(DQN.memory), size=self.bsize)
-      sampled_states = sorted([DQN.memory[i] for i in idx], key=lambda s: s[3])
+      idx = np.random.randint(0, len(self.get_memory(DQN.selftrain)), size=self.bsize)
+      sampled_states = sorted([self.get_memory(DQN.selftrain)[i] for i in idx], key=lambda s: s[3])
       terms = np.array([s[3] for s in sampled_states])
 
       n_nonterms = self.bsize - np.sum(terms)
@@ -250,7 +277,7 @@ class DQN(object):
       X = np.zeros((self.bsize, DQN.input_dim))
       for i,s in enumerate(sampled_states):
         X[i] = np.array(s[0])
-      DQN.model.train_on_batch(X, Y)
+      self.get_model(DQN.selftrain).train_on_batch(X, Y)
       DQN.counter += 1
 
     def __call__(self, turn, pid, planets, fleets):
@@ -269,16 +296,16 @@ class DQN(object):
         if src==dst:
           return []
 
-        return [Order(src, dst, src.ships/4)]
+        return [Order(src, dst, src.ships/2)]
 
     def done(self, won, turns):
         pass
 
     def save_weights(self):
-        DQN.model.save_weights("model.h5", overwrite=True)
+        self.get_model(DQN.selftrain).save_weights("model.h5", overwrite=True)
 
     def load_weights(self):
-        DQN.model.load_weights("model.h5")
+        self.get_model(DQN.selftrain).load_weights("model.h5")
 
     def reset_Q(self):
       DQN.Q_v = DQN.Q_v_ctr = DQN.counter = 0
