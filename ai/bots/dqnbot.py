@@ -21,7 +21,7 @@ class DQN(object):
     Q_v = 0
     Q_v_ctr = 0
     
-    input_dim = 33
+    input_dim = 19
     output_dim = 1
 
     model = Sequential()
@@ -33,8 +33,10 @@ class DQN(object):
     model.add(Activation('linear'))
     # opt = RMSprop(lr=0.0025)
     model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
-    # model.load_weights("model_pretrained_with_random.h5")
+
     # model.load_weights("model.h5")
+    model.load_weights("model_pretrained_with_random.h5")
+    
     # model.load_weights("model_3000.h5")
     # model.load_weights("model_vs_evol_1000.h5")
 
@@ -47,6 +49,7 @@ class DQN(object):
       self.eps = eps
       self.gamma = gamma
       self.bsize = bsize
+      self.tips = 0.5
       
     def get_memory(self, selftrain):
       return DQN.memory if not selftrain else self.memory
@@ -65,10 +68,11 @@ class DQN(object):
         general_features = self.make_state_features(*last_state)
         self.last_state = self.make_features(action[0],action[1], *general_features)
 
-
       self.get_memory(DQN.selftrain).append([self.last_state, (new_state, r_id), reward, terminal])
+
       if len(self.get_memory(DQN.selftrain)) > DQN.mem_size:
         del self.get_memory(DQN.selftrain)[0]
+      if len(self.get_memory(DQN.selftrain)) > self.bsize:
         self.train()
 
 
@@ -95,6 +99,7 @@ class DQN(object):
 
     def local_model(self):
       self.memory = []
+
       self.model = Sequential()
       self.model.add(Dense(100, batch_input_shape=(None, DQN.input_dim)))
       self.model.add(Activation('relu'))
@@ -104,6 +109,7 @@ class DQN(object):
       self.model.add(Activation('linear'))
       self.model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
       self.model.load_weights("model.h5")
+      
       DQN.selftrain = True
 
 
@@ -113,7 +119,7 @@ class DQN(object):
       total_growth=0
       total_fleets=0
 
-      buckets = 10
+      buckets = 3
       my_ships_total = 0
       your_ships_total = 0
       neutral_ships_total = 0
@@ -229,14 +235,29 @@ class DQN(object):
 
     def make_random_move(self, planets, fleets):
 
+      s_f = self.make_state_features(planets, fleets)
+
+      # if random.random()<self.tips:
+      #   my_planets, theirs, neutral = aggro_partition(self.pid, planets)
+
+      #   self.tips *= 0.999
+      #   src = max(my_planets, key=get_ships)
+
+      #   e_dst = [e_plt.growth/dist(src,e_plt)/((e_plt.ships-np.sum(s_f[-1][e_plt.id])) if e_plt.ships!=np.sum(s_f[-1][e_plt.id]) else 0.1) for e_plt in theirs]
+      #   n_dst = [n_plt.growth/dist(src,n_plt)/((n_plt.ships-abs(np.sum(s_f[-1][n_plt.id]))) if n_plt.ships!=abs(np.sum(s_f[-1][n_plt.id])) else 0.1) for n_plt in neutral]
+      #   e_dst.append(-np.inf)
+      #   n_dst.append(-np.inf)
+
+      #   dst = theirs[np.argmax(e_dst)] if np.max(e_dst)>=np.max(n_dst) else neutral[np.argmax(n_dst)]
+
+      # else:
       my_planets, other_planets = partition(lambda x: x.owner == self.pid, planets)
       src = random.choice(my_planets)
       dst = random.choice(other_planets)
 
-      s_f = self.make_state_features(planets, fleets)
       self.last_state = self.make_features(src, dst, *s_f)
-
       return src, dst
+    
     
 
     def Q_approx(self, sampled):

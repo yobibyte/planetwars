@@ -14,7 +14,7 @@ class PlanetWars:
     ais = {}
     maps = load_all_maps()
 
-    exploit = False
+    exploit = True
     epoch_ctr = 0
     DQNvsDQN = False
 
@@ -43,6 +43,7 @@ class PlanetWars:
         self.collisions = collisions
 
 
+        self.DQN_id = -1
         for i, p in enumerate(self.players):
             if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
                 self.DQN_id=i
@@ -53,20 +54,17 @@ class PlanetWars:
         self.another_bot_id = 1 if PlanetWars.DQNvsDQN else self.another_bot_id
         self.another_bot_player = self.players[1] if PlanetWars.DQNvsDQN else None
 
+
         if PlanetWars.DQNvsDQN:
             self.DQN_player.local_model()
             self.another_bot_player.local_model()
-
-
-        if not PlanetWars.DQNvsDQN:
+            if self.DQN_player.counter/2>=10000:
+                self.DQN_player.reset_Q()
+                PlanetWars.epoch_ctr += 1        
+        elif self.DQN_id!=-1:
             if self.DQN_player.counter>=10000:
                 self.DQN_player.reset_Q()
                 PlanetWars.epoch_ctr += 1
-        else:
-            if self.DQN_player.counter/2>=10000:
-                self.DQN_player.reset_Q()
-                PlanetWars.epoch_ctr += 1
-        
 
     def add_view(self, view):
         self.views.append(view)
@@ -80,8 +78,8 @@ class PlanetWars:
 
         dqnreward = dqnreward_e = 0
         reward = reward_e = 0
-        temp_mem = ()
-        temp_mem_e = ()
+        # temp_mem = ()
+        # temp_mem_e = ()
 
         planets, fleets = self.freeze()
         for view in self.views:
@@ -113,39 +111,40 @@ class PlanetWars:
             dqnreward += reward
             dqnreward_e += reward_e
 
-            if winner < 0:
-                if not PlanetWars.DQNvsDQN:
-                    if not PlanetWars.exploit:
-                        self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward_e, False, self.another_bot_id)
+            if self.DQN_id!= -1:
+                if winner < 0:
+                    if not PlanetWars.DQNvsDQN:
+                        if not PlanetWars.exploit:
+                            self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward_e, False, self.another_bot_id)
+                        else:
+                            self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward, False, self.DQN_id)
                     else:
+                        self.another_bot_player.update_memory(self.last_state, self.action, (planets, fleets), reward_e, False, self.another_bot_id)
                         self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward, False, self.DQN_id)
+                        # temp_mem   += ((self.last_state,self.action,(planets,fleets),reward,  False, self.DQN_id),)
+                        # temp_mem_e += ((self.last_state,self.action,(planets,fleets),reward_e,False, self.another_bot_id),)
+                        # self.DQN_player.update_memory_twice(self.last_state, self.action, (planets, fleets), reward, reward_e, False)
                 else:
-                    self.another_bot_player.update_memory(self.last_state, self.action, (planets, fleets), reward_e, False, self.another_bot_id)
-                    self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward, False, self.DQN_id)
-                    # temp_mem   += ((self.last_state,self.action,(planets,fleets),reward,  False, self.DQN_id),)
-                    # temp_mem_e += ((self.last_state,self.action,(planets,fleets),reward_e,False, self.another_bot_id),)
-                    # self.DQN_player.update_memory_twice(self.last_state, self.action, (planets, fleets), reward, reward_e, False)
-            else:
-                if not PlanetWars.DQNvsDQN:
-                    if not PlanetWars.exploit:
-                        print "collect data from opponent"
-                        self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward_e, True, self.another_bot_id)
+                    if not PlanetWars.DQNvsDQN:
+                        if not PlanetWars.exploit:
+                            print "collect data from opponent"
+                            self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward_e, True, self.another_bot_id)
+                        else:
+                            print "collect data from itself"
+                            self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward, True, self.DQN_id)
                     else:
-                        print "collect data from itself"
+                        self.another_bot_player.update_memory(self.last_state, self.action, (planets, fleets), reward_e, True, self.another_bot_id)
                         self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward, True, self.DQN_id)
-                else:
-                    self.another_bot_player.update_memory(self.last_state, self.action, (planets, fleets), reward_e, True, self.another_bot_id)
-                    self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward, True, self.DQN_id)
-                    # temp_mem   += ((self.last_state,self.action,(planets,fleets),reward,  True, self.DQN_id),)
-                    # temp_mem_e += ((self.last_state,self.action,(planets,fleets),reward_e,True, self.another_bot_id),)
-                    # self.DQN_player.update_memory_twice(self.last_state, self.action, (planets, fleets), reward, reward_e, True)
+                        # temp_mem   += ((self.last_state,self.action,(planets,fleets),reward,  True, self.DQN_id),)
+                        # temp_mem_e += ((self.last_state,self.action,(planets,fleets),reward_e,True, self.another_bot_id),)
+                        # self.DQN_player.update_memory_twice(self.last_state, self.action, (planets, fleets), reward, reward_e, True)
 
-                    if winner==self.DQN_id:
-                        self.DQN_player.save_weights()
-                        # self.DQN_player.update_memory_dd(*temp_mem)
-                    else:
-                        self.another_bot_player.save_weights()
-                        # self.DQN_player.update_memory_dd(*temp_mem_e)
+                        if winner==self.DQN_id:
+                            self.DQN_player.save_weights()
+                            # self.DQN_player.update_memory_dd(*temp_mem)
+                        else:
+                            self.another_bot_player.save_weights()
+                            # self.DQN_player.update_memory_dd(*temp_mem_e)
 
 
 
@@ -159,7 +158,10 @@ class PlanetWars:
             except AttributeError:
                 pass
 
-        return winner, ship_counts, turns, self.time_totals, self.time_max, dqnreward, dqnreward_e, self.DQN_player.counter/2, self.DQN_player.Q_v, self.DQN_player.Q_v_ctr
+        if self.DQN_id!=-1:
+            return winner, ship_counts, turns, self.time_totals, self.time_max, dqnreward, dqnreward_e, self.DQN_player.counter/2, self.DQN_player.Q_v, self.DQN_player.Q_v_ctr
+        else:
+            return winner, ship_counts, turns, self.time_totals, self.time_max, 0, 0, 0,0,0
         
 
                 
@@ -242,13 +244,15 @@ class PlanetWars:
 
     def compute_score(self, planets, fleets):
         
-        score_s=0
-        score_s = sum([plt.ships for plt in planets if plt.owner==self.DQN_id])
-        score_s += sum([f.ships for f in fleets if f.owner==self.DQN_id])
-        score_es = sum([plt.ships for plt in planets if plt.owner!=self.DQN_id and plt.owner!=0])
-        score_es += sum([f.ships for f in fleets if f.owner!=self.DQN_id])
-        
-        return score_s, score_es
+        if self.DQN_id!=-1:
+            score_s=0
+            score_s = sum([plt.ships for plt in planets if plt.owner==self.DQN_id])
+            score_s += sum([f.ships for f in fleets if f.owner==self.DQN_id])
+            score_es = sum([plt.ships for plt in planets if plt.owner!=self.DQN_id and plt.owner!=0])
+            score_es += sum([f.ships for f in fleets if f.owner!=self.DQN_id])
+            
+            return score_s, score_es
+        return 0,0
 
 
     def issue_order(self, player, order):
@@ -343,11 +347,10 @@ class PlanetWars:
       return False
 
     def save_weights(self):
-        self.DQN_player.save_weights()
+        if self.DQN_id!=-1:
+            self.DQN_player.save_weights()
 
     def load_weights(self):
         self.DQN_player.load_weights()
 
-    def counter_epoch(self):
-        return self.DQN_player.counter
                 
