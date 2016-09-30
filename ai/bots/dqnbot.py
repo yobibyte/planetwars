@@ -25,9 +25,7 @@ class DQN(object):
     output_dim = 1
 
     model = Sequential()
-    model.add(Dense(100, batch_input_shape=(None, input_dim)))
-    model.add(Activation('relu'))
-    model.add(Dense(100))
+    model.add(Dense(64, batch_input_shape=(None, input_dim)))
     model.add(Activation('relu'))
     model.add(Dense(output_dim))
     model.add(Activation('linear'))
@@ -72,7 +70,7 @@ class DQN(object):
 
       if len(self.get_memory(DQN.selftrain)) > DQN.mem_size:
         del self.get_memory(DQN.selftrain)[0]
-      if len(self.get_memory(DQN.selftrain)) > self.bsize:
+      #if len(self.get_memory(DQN.selftrain)) > self.bsize:
         self.train()
 
 
@@ -309,7 +307,7 @@ class DQN(object):
         if len(my_planets) == 0 or len(other_planets) == 0:
           return []
 
-        if random.random()<self.eps:
+        if random.random()<self.eps or len(DQN.memory)<DQN.mem_size:
           src, dst = self.make_random_move(planets,fleets)
         else:
           src, dst = self.make_smart_move(planets,fleets)
