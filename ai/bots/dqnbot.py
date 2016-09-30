@@ -35,7 +35,7 @@ class DQN(object):
     model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
 
     # model.load_weights("model.h5")
-    model.load_weights("model_pretrained_with_random.h5")
+    #model.load_weights("model_pretrained_with_random.h5")
     
     # model.load_weights("model_3000.h5")
     # model.load_weights("model_vs_evol_1000.h5")

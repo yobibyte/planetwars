@@ -5,6 +5,7 @@ from planetwars import Fleet, Planet
 from planetwars.internal import load_all_maps
 from planetwars.utils import count_ships, partition
 
+from reward import reward_function1 as rf1
 
 def _neutral_player(turn, pid, planets, fleets):
     return []
@@ -18,6 +19,7 @@ class PlanetWars:
     epoch_ctr = 0
     DQNvsDQN = False
 
+
     def __init__(self, players, map_name=None, planets=None, fleets=None,
                                 turns_per_second=None, turn=0, collisions=False):
         if len(players) < 2:
@@ -25,6 +27,8 @@ class PlanetWars:
         self.player_names = players
         self.players = [_neutral_player] + [PlanetWars.ais[player] for player in players]
         self.map_name = map_name
+
+        self.get_reward=rf1
 
         if map_name is not None:
             planets, fleets = PlanetWars.maps[map_name]
@@ -230,17 +234,15 @@ class PlanetWars:
         for planet in self.planets:
             planet.battle([fleet for fleet in arrived_fleets if fleet.destination == planet])
 
-        next_score, next_score_e = self.compute_score(self.planets, self.fleets)
-
-
+        #next_score, next_score_e = self.compute_score(self.planets, self.fleets)
         # return float(next_score-score), float(next_score_e-score_e)
-        if next_score-score > next_score_e-score_e:
-            return 1.0, 0.0
-        elif next_score-score < next_score_e-score_e:
-            return 0.0, 1.0
-        else:
-            return 0.0, 0.0
-
+        #if next_score-score > next_score_e-score_e:
+        #    return 1.0, 0.0
+        #elif next_score-score < next_score_e-score_e:
+        #    return 0.0, 1.0
+        #else:
+        #    return 0.0, 0.0
+        return self.get_reward(self.DQN_id, self.last_state[0], self.planets), self.get_reward(self.another_bot_id, self.last_state[0], self.planets)
 
     def compute_score(self, planets, fleets):
         
