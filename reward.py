@@ -1,4 +1,4 @@
-def reward_function1(pid, p_before, p_after, f_before, f_after):
+def reward_function1(pid, p_before, p_after, f_before=None, f_after=None):
   '''You get +1 for conquering new planet
      and -1 for losing one
   '''
