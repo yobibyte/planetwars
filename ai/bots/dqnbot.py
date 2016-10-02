@@ -25,18 +25,18 @@ class DQN(object):
     output_dim = 1
 
     model = Sequential()
-    model.add(Dense(64, batch_input_shape=(None, input_dim)))
+    model.add(Dense(100, batch_input_shape=(None, input_dim)))
+    model.add(Activation('relu'))
+    model.add(Dense(100))
     model.add(Activation('relu'))
     model.add(Dense(output_dim))
     model.add(Activation('linear'))
-    # opt = RMSprop(lr=0.0025)
-    model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
+    opt = RMSprop(lr=0.0025)
+    model.compile(loss='mse', optimizer=opt, metrics=['accuracy'])
 
     # model.load_weights("model.h5")
     #model.load_weights("model_pretrained_with_random.h5")
-    
-    # model.load_weights("model_3000.h5")
-    # model.load_weights("model_vs_evol_1000.h5")
+
 
     selftrain = False
 
@@ -47,7 +47,7 @@ class DQN(object):
       self.eps = eps
       self.gamma = gamma
       self.bsize = bsize
-      self.tips = 0.5
+      self.tips = 0.0
       
     def get_memory(self, selftrain):
       return DQN.memory if not selftrain else self.memory
@@ -70,7 +70,6 @@ class DQN(object):
 
       if len(self.get_memory(DQN.selftrain)) > DQN.mem_size:
         del self.get_memory(DQN.selftrain)[0]
-      #if len(self.get_memory(DQN.selftrain)) > self.bsize:
         self.train()
 
 
@@ -315,7 +314,7 @@ class DQN(object):
         if src==dst:
           return []
 
-        return [Order(src, dst, src.ships/2)]
+        return [Order(src, dst, src.ships/3)]
 
     def done(self, won, turns):
         pass

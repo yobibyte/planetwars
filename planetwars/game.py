@@ -163,9 +163,9 @@ class PlanetWars:
                 pass
 
         if self.DQN_id!=-1:
-            return winner, ship_counts, turns, self.time_totals, self.time_max, dqnreward, dqnreward_e, self.DQN_player.counter/2, self.DQN_player.Q_v, self.DQN_player.Q_v_ctr
+            return winner, ship_counts, turns, self.time_totals, self.time_max, dqnreward, dqnreward_e, self.DQN_player.counter, self.DQN_player.Q_v, self.DQN_player.Q_v_ctr
         else:
-            return winner, ship_counts, turns, self.time_totals, self.time_max, 0, 0, 0,0,0
+            return winner, ship_counts, turns, self.time_totals, self.time_max, 0,0,0,0,0
         
 
                 

@@ -38,6 +38,8 @@ def main(argv):
                         help="Suppress all output to the console.")
     parser.add_argument('--lfo', action='store_true', required=False, default=False)
     parser.add_argument('--ctu', action='store_true', required=False, default=False)
+    parser.add_argument('--toy', action='store_true', required=False, default=False)
+    parser.add_argument('--test', action='store_true', required=False, default=False)
 
     arguments, remaining = parser.parse_known_args(argv)
 
@@ -75,8 +77,7 @@ def main(argv):
         state.random_setup(arguments.p1num, arguments.p2num, arguments.nnum)
       else:
         if len(maps) == 0:
-          maps = ["map%i" % i for i in range(1, 100)]
-          # maps = ["map_toy%i" % i for i in range(1, 10)]
+          maps = ["map%i" % i for i in range(1, 100)] if not arguments.toy else ["map_toy%i" % i for i in range(1, 10)]
           random.shuffle(maps, random.random)
         map_name = maps.pop()
 
@@ -160,22 +161,23 @@ def main(argv):
       #sys.stdout.write('.')
       #sys.stdout.flush()
 
-      if counter>=10000:
-        n_g = (gn - n_g + 1.0 if temp==0 else float(gn - temp))
-        stats.append(str(win_ctr/n_g)+"\t"+str(turns_ctr/n_g)+"\t"+str(r_ctr/n_g)+"\t"+str(qv/float(qv_ctr)))
-        if arguments.lfo:
-          PlanetWars.learn_from_opp = True if win_ctr/n_g > 0.45 else False
-        win_ctr=turns_ctr=r_ctr=0
-        temp = gn
+      if not arguments.test:
+        if counter>=10000:
+          n_g = (gn - n_g + 1.0 if temp==0 else float(gn - temp))
+          stats.append(str(win_ctr/n_g)+"\t"+str(turns_ctr/n_g)+"\t"+str(r_ctr/n_g)+"\t"+str(qv/float(qv_ctr)))
+          if arguments.lfo:
+            PlanetWars.learn_from_opp = False if win_ctr/n_g > 0.45 else True
+          win_ctr=turns_ctr=r_ctr=0
+          temp = gn
 
-      if PlanetWars.epoch_ctr%10==0 or gn==arguments.games-1:
-        game.save_weights()
-        file = open("stats", 'w')
-        file.write("win\tturns/game\treward/game\taverage Q value\n")
-        for i in range(len(stats)):
-          file.write(stats[i])
-          file.write("\n")
-        file.close()
+        if (PlanetWars.epoch_ctr-10)%10==0 or gn==arguments.games-1:
+          game.save_weights()
+          file = open("stats", 'w')
+          file.write("win\tturns/game\treward/game\taverage Q value\n")
+          for i in range(len(stats)):
+            file.write(stats[i])
+            file.write("\n")
+          file.close()
 
     print res
     
