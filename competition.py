@@ -36,6 +36,8 @@ def main(argv):
                         help="Generate random maps.")
     parser.add_argument('--quiet', action='store_true', required=False, default=False,
                         help="Suppress all output to the console.")
+    parser.add_argument('--lfo', action='store_true', required=False, default=False)
+    parser.add_argument('--ctu', action='store_true', required=False, default=False)
 
     arguments, remaining = parser.parse_known_args(argv)
 
@@ -54,6 +56,9 @@ def main(argv):
       print "p1num=", arguments.p1num
       print "p2num=", arguments.p2num
       print "nnum=",  arguments.nnum
+      
+    if arguments.lfo:
+      PlanetWars.learn_from_opp = True
 
     players = remaining
     res = numpy.zeros((len(players), len(players)))
@@ -97,8 +102,8 @@ def main(argv):
           else:
             game = PlanetWars(pair, map_name, collisions=arguments.collisions)
           
-          # if gn==0:
-          #   game.load_weights()
+          if arguments.ctu and gn==0:
+            game.load_weights()
 
           winner, ship_counts, turns, tt, tm, reward, reward_e, counter, qv, qv_ctr = game.play()
 
@@ -158,7 +163,8 @@ def main(argv):
       if counter>=10000:
         n_g = (gn - n_g + 1.0 if temp==0 else float(gn - temp))
         stats.append(str(win_ctr/n_g)+"\t"+str(turns_ctr/n_g)+"\t"+str(r_ctr/n_g)+"\t"+str(qv/float(qv_ctr)))
-        PlanetWars.exploit = True if win_ctr/n_g > 0.45 else False
+        if arguments.lfo:
+          PlanetWars.learn_from_opp = True if win_ctr/n_g > 0.45 else False
         win_ctr=turns_ctr=r_ctr=0
         temp = gn
 
