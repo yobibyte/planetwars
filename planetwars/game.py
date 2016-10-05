@@ -129,6 +129,9 @@ class PlanetWars:
                         # temp_mem_e += ((self.last_state,self.action,(planets,fleets),reward_e,False, self.another_bot_id),)
                         # self.DQN_player.update_memory_twice(self.last_state, self.action, (planets, fleets), reward, reward_e, False)
                 else:
+                    print "eps: ", self.DQN_player.eps
+                    print "epoch: ", PlanetWars.epoch_ctr
+
                     if not PlanetWars.DQNvsDQN:
                         if PlanetWars.learn_from_opp:
                             print "collect data from opponent"
@@ -234,7 +237,7 @@ class PlanetWars:
             planet.battle([fleet for fleet in arrived_fleets if fleet.destination == planet])
 
         
-        return self.get_reward(self.DQN_id, self.last_state[0], self.planets), self.get_reward(self.another_bot_id, self.last_state[0], self.planets)
+        return self.get_reward(self.DQN_id, self.last_state[0], self.planets, self.last_state[1],self.fleets, self.turn), self.get_reward(self.another_bot_id, self.last_state[0], self.planets,self.last_state[1],self.fleets, self.turn)
 
 
     def issue_order(self, player, order):

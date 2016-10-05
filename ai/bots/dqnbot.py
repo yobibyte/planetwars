@@ -21,7 +21,7 @@ class DQN(object):
     Q_v = 0
     Q_v_ctr = 0
     
-    input_dim = 19
+    input_dim = 24
     output_dim = 1
 
     model = Sequential()
@@ -35,19 +35,19 @@ class DQN(object):
     model.compile(loss='mse', optimizer=opt, metrics=['accuracy'])
 
     # model.load_weights("model.h5")
-    #model.load_weights("model_pretrained_with_random.h5")
+    # model.load_weights("model_pretrained_with_random.h5")
 
 
     selftrain = False
+    tips = 0.0
+    eps = 1
 
 
-    def __init__(self, eps=0.1, gamma=0.9, bsize=32): 
+    def __init__(self, gamma=0.9, bsize=32): 
       self.last_state = None
       self.last_action = None
-      self.eps = eps
       self.gamma = gamma
       self.bsize = bsize
-      self.tips = 0.0
       
     def get_memory(self, selftrain):
       return DQN.memory if not selftrain else self.memory
@@ -104,7 +104,8 @@ class DQN(object):
       self.model.add(Activation('relu'))
       self.model.add(Dense(DQN.output_dim))
       self.model.add(Activation('linear'))
-      self.model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
+      self.opt = RMSprop(lr=0.0025)
+      self.model.compile(loss='mse', optimizer=self.opt, metrics=['accuracy'])
       self.model.load_weights("model.h5")
       
       DQN.selftrain = True
@@ -116,7 +117,8 @@ class DQN(object):
       total_growth=0
       total_fleets=0
 
-      buckets = 3
+      buckets = 10
+
       my_ships_total = 0
       your_ships_total = 0
       neutral_ships_total = 0
@@ -127,11 +129,11 @@ class DQN(object):
         if p.owner == 0:
           neutral_ships_total += p.ships
         elif p.owner == self.pid:
-          my_growth += p.growth
+          # my_growth += p.growth
           my_ships_total += p.ships
         else:
           your_ships_total += p.ships
-          your_growth += p.growth
+          # your_growth += p.growth
 
       max_dist = 0
       for src in planets:
@@ -153,48 +155,75 @@ class DQN(object):
       total_growth = my_growth+your_growth
 
       tally /= float(total_ships)
-      my_ships_total /= float(total_ships)
-      your_ships_total /= float(total_ships)
-      neutral_ships_total /= float(total_ships)
-      my_growth /= float(total_growth)
-      your_growth /= float(total_growth)
+      # my_ships_total /= float(total_ships)
+      # your_ships_total /= float(total_ships)
+      # neutral_ships_total /= float(total_ships)
+      # my_growth /= float(total_growth)
+      # your_growth /= float(total_growth)
 
-      return total_ships, total_growth, my_ships_total, your_ships_total, neutral_ships_total, my_growth, your_growth, buckets, tally
+      # return total_ships, total_growth, my_ships_total, your_ships_total, neutral_ships_total, my_growth, your_growth, buckets, tally
+      return buckets, tally
 
 
-    def make_features(self, src, dst, total_ships, total_growth, my_ships_total,your_ships_total,neutral_ships_total, my_growth,your_growth,buckets,tally):
+    # def make_features(self, src, dst, total_ships, total_growth, my_ships_total,your_ships_total,neutral_ships_total, my_growth,your_growth,buckets,tally):
+
+    def make_features(self, src, dst, buckets,tally):
+
+      # fv = []
+
+      # if not(src==dst):      
+      #   fv.append(src.ships/float(total_ships))
+      #   fv.append(dst.ships/float(total_ships))
+      #   fv.append(my_ships_total)
+      #   fv.append(your_ships_total)
+      #   fv.append(neutral_ships_total)
+      #   fv.append(my_growth)
+      #   fv.append(your_growth)
+      #   fv.append(dist(src, dst))
+      #   fv.append(1 if dst.owner == self.pid else 0)
+      #   fv.append(1 if dst.owner != 0 and dst.owner != self.pid else 0)
+      #   fv.append(1 if dst.owner == 0 else 0)
+      #   fv.append(src.growth/float(total_growth))
+      #   fv.append(dst.growth/float(total_growth))
+      #   for i in range(buckets):
+      #     fv.append(tally[src.id, i])
+      #   for i in range(buckets):
+      #     fv.append(tally[dst.id, i])
+
+      # else:
+      #   fv.append(0)
+      #   fv.append(0)
+      #   fv.append(my_ships_total)
+      #   fv.append(your_ships_total)
+      #   fv.append(neutral_ships_total)
+      #   fv.append(my_growth)
+      #   fv.append(your_growth)
+      #   fv.append(0)
+      #   fv.append(0)
+      #   fv.append(0)
+      #   fv.append(0)
+      #   fv.append(0)
+      #   fv.append(0)
+      #   for i in range(buckets):
+      #     fv.append(0)
+      #   for i in range(buckets):
+      #     fv.append(0)
+
+      # return fv
 
       fv = []
-      
-      if not(src==dst):
-        fv.append(src.ships/float(total_ships))
-        fv.append(dst.ships/float(total_ships))
-        fv.append(my_ships_total)
-        fv.append(your_ships_total)
-        fv.append(neutral_ships_total)
-        fv.append(my_growth)
-        fv.append(your_growth)
-        fv.append(dist(src, dst))
+
+      if not(src==dst):      
+        fv.append(1 if src.ships>dst.ships+dst.growth*dist(src,dst)*2 else 0)
         fv.append(1 if dst.owner == self.pid else 0)
         fv.append(1 if dst.owner != 0 and dst.owner != self.pid else 0)
         fv.append(1 if dst.owner == 0 else 0)
-        fv.append(src.growth/float(total_growth))
-        fv.append(dst.growth/float(total_growth))
         for i in range(buckets):
           fv.append(tally[src.id, i])
         for i in range(buckets):
           fv.append(tally[dst.id, i])
 
       else:
-        fv.append(0)
-        fv.append(0)
-        fv.append(my_ships_total)
-        fv.append(your_ships_total)
-        fv.append(neutral_ships_total)
-        fv.append(my_growth)
-        fv.append(your_growth)
-        fv.append(0)
-        fv.append(0)
         fv.append(0)
         fv.append(0)
         fv.append(0)
@@ -234,10 +263,10 @@ class DQN(object):
 
       s_f = self.make_state_features(planets, fleets)
 
-      # if random.random()<self.tips:
+      # if random.random()<DQN.tips:
       #   my_planets, theirs, neutral = aggro_partition(self.pid, planets)
 
-      #   self.tips *= 0.999
+      #   DQN.tips *= 0.9999
       #   src = max(my_planets, key=get_ships)
 
       #   e_dst = [e_plt.growth/dist(src,e_plt)/((e_plt.ships-np.sum(s_f[-1][e_plt.id])) if e_plt.ships!=np.sum(s_f[-1][e_plt.id]) else 0.1) for e_plt in theirs]
@@ -306,15 +335,16 @@ class DQN(object):
         if len(my_planets) == 0 or len(other_planets) == 0:
           return []
 
-        if random.random()<self.eps or len(DQN.memory)<DQN.mem_size:
+        if random.random()<DQN.eps:
           src, dst = self.make_random_move(planets,fleets)
+          DQN.eps *= 0.9999 if DQN.eps>0.01 else 1
         else:
           src, dst = self.make_smart_move(planets,fleets)
 
         if src==dst:
           return []
 
-        return [Order(src, dst, src.ships/3)]
+        return [Order(src, dst, src.ships/2)]
 
     def done(self, won, turns):
         pass
@@ -323,10 +353,12 @@ class DQN(object):
         self.get_model(DQN.selftrain).save_weights("model.h5", overwrite=True)
 
     def load_weights(self):
+        print 'load the model.............'
         self.get_model(DQN.selftrain).load_weights("model.h5")
+        # self.get_model(DQN.selftrain).load_weights("model_pretrained_with_random.h5")
 
     def reset_Q(self):
-      DQN.Q_v = DQN.Q_v_ctr = DQN.counter = 0
+        DQN.Q_v = DQN.Q_v_ctr = DQN.counter = 0
 
 
 
