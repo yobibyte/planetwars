@@ -17,8 +17,6 @@ class PlanetWars:
 
     exploit = True
     epoch_ctr = 0
-    DQNvsDQN = False
-
 
     def __init__(self, players, map_name=None, planets=None, fleets=None,
                                 turns_per_second=None, turn=0, collisions=False):
@@ -54,18 +52,8 @@ class PlanetWars:
                 self.DQN_player=p
             else:
                 self.another_bot_id = i
-        PlanetWars.DQNvsDQN = True if self.another_bot_id==0 else False
-        self.another_bot_id = 1 if PlanetWars.DQNvsDQN else self.another_bot_id
-        self.another_bot_player = self.players[1] if PlanetWars.DQNvsDQN else None
 
-
-        if PlanetWars.DQNvsDQN:
-            self.DQN_player.local_model()
-            self.another_bot_player.local_model()
-            if self.DQN_player.counter/2>=10000:
-                self.DQN_player.reset_Q()
-                PlanetWars.epoch_ctr += 1        
-        elif self.DQN_id!=-1:
+        if self.DQN_id!=-1:
             if self.DQN_player.counter>=10000:
                 self.DQN_player.reset_Q()
                 PlanetWars.epoch_ctr += 1
@@ -82,8 +70,6 @@ class PlanetWars:
 
         dqnreward = dqnreward_e = 0
         reward = reward_e = 0
-        # temp_mem = ()
-        # temp_mem_e = ()
 
         planets, fleets = self.freeze()
         for view in self.views:
@@ -110,48 +96,11 @@ class PlanetWars:
                 view.update(planets, fleets)
             # Check for end game.
             winner, ship_counts, turns = self.gameover()
-            # print winner, ship_counts, turns
-
+            
             dqnreward += reward
             dqnreward_e += reward_e
 
-            if self.DQN_id!= -1:
-                if winner < 0:
-                    if not PlanetWars.DQNvsDQN:
-                        if not PlanetWars.exploit:
-                            self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward_e, False, self.another_bot_id)
-                        else:
-                            self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward, False, self.DQN_id)
-                    else:
-                        self.another_bot_player.update_memory(self.last_state, self.action, (planets, fleets), reward_e, False, self.another_bot_id)
-                        self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward, False, self.DQN_id)
-                        # temp_mem   += ((self.last_state,self.action,(planets,fleets),reward,  False, self.DQN_id),)
-                        # temp_mem_e += ((self.last_state,self.action,(planets,fleets),reward_e,False, self.another_bot_id),)
-                        # self.DQN_player.update_memory_twice(self.last_state, self.action, (planets, fleets), reward, reward_e, False)
-                else:
-                    if not PlanetWars.DQNvsDQN:
-                        if not PlanetWars.exploit:
-                            print "collect data from opponent"
-                            self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward_e, True, self.another_bot_id)
-                        else:
-                            print "collect data from itself"
-                            self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward, True, self.DQN_id)
-                    else:
-                        self.another_bot_player.update_memory(self.last_state, self.action, (planets, fleets), reward_e, True, self.another_bot_id)
-                        self.DQN_player.update_memory(self.last_state, self.action, (planets, fleets), reward, True, self.DQN_id)
-                        # temp_mem   += ((self.last_state,self.action,(planets,fleets),reward,  True, self.DQN_id),)
-                        # temp_mem_e += ((self.last_state,self.action,(planets,fleets),reward_e,True, self.another_bot_id),)
-                        # self.DQN_player.update_memory_twice(self.last_state, self.action, (planets, fleets), reward, reward_e, True)
-
-                        if winner==self.DQN_id:
-                            self.DQN_player.save_weights()
-                            # self.DQN_player.update_memory_dd(*temp_mem)
-                        else:
-                            self.another_bot_player.save_weights()
-                            # self.DQN_player.update_memory_dd(*temp_mem_e)
-
-
-
+            self.DQN_player.update_memory((planets, fleets), reward, winner >= 0)
 
         for view in self.views:
             view.game_over(winner, ship_counts, turns)
@@ -234,14 +183,6 @@ class PlanetWars:
         for planet in self.planets:
             planet.battle([fleet for fleet in arrived_fleets if fleet.destination == planet])
 
-        #next_score, next_score_e = self.compute_score(self.planets, self.fleets)
-        # return float(next_score-score), float(next_score_e-score_e)
-        #if next_score-score > next_score_e-score_e:
-        #    return 1.0, 0.0
-        #elif next_score-score < next_score_e-score_e:
-        #    return 0.0, 1.0
-        #else:
-        #    return 0.0, 0.0
         return self.get_reward(self.DQN_id, self.last_state[0], self.planets), self.get_reward(self.another_bot_id, self.last_state[0], self.planets)
 
     def compute_score(self, planets, fleets):
@@ -271,27 +212,6 @@ class PlanetWars:
                 self.action = (source,destination)
 
 
-
-    # old code
-    #
-    # def gameover(self):
-    #     players = range(1, len(self.players))
-    #     living = list(filter(self.is_alive, players))
-    #     if len(living) == 1:
-    #         return living[0], count_ships(self.planets, self.fleets)
-    #     elif self.turn >= 200:
-    #         ship_counts = count_ships(self.planets, self.fleets)
-    #         ship_counts = [(p, s) for p, s in ship_counts if p > 0]
-    #         winner = 0 if ship_counts[0][1] == ship_counts[1][1] else ship_counts[0][0]
-    #         return winner, ship_counts
-    #     else:
-    #         return -1, []
-
-    # def is_alive(self, player):
-    #     for planet in self.planets:
-    #         if planet.owner == player:
-    #             return True
-    #     return False
 
 # Endgame Conditions http://planetwars.aichallenge.org/specification.php
 #
