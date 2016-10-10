@@ -170,7 +170,15 @@ def main(argv):
           win_ctr=turns_ctr=r_ctr=0
           temp = gn
 
-        if (PlanetWars.epoch_ctr-10)%10==0 or gn==arguments.games-1:
+          if (PlanetWars.epoch_ctr-10)%10==0:
+            game.save_weights()
+            file = open("stats", 'w')
+            file.write("win\tturns/game\treward/game\taverage Q value\n")
+            for i in range(len(stats)):
+              file.write(stats[i])
+              file.write("\n")
+            file.close()
+        if gn==arguments.games-1:
           game.save_weights()
           file = open("stats", 'w')
           file.write("win\tturns/game\treward/game\taverage Q value\n")
@@ -178,7 +186,6 @@ def main(argv):
             file.write(stats[i])
             file.write("\n")
           file.close()
-
     print res
     
 

@@ -5,7 +5,7 @@ from planetwars import Fleet, Planet
 from planetwars.internal import load_all_maps
 from planetwars.utils import count_ships, partition
 
-from reward import reward_function1 as rf1
+from reward import reward_function2 as rf1
 
 def _neutral_player(turn, pid, planets, fleets):
     return []
