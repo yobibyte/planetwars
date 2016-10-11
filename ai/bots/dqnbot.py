@@ -14,40 +14,29 @@ from keras.optimizers import RMSprop
 @planetwars_class
 class DQN(object):
 
-    mem_size=10000
-    memory = []
-
     counter = 0
     Q_v = 0
     Q_v_ctr = 0
-    
-    input_dim = 19
-    output_dim = 1
 
+    mem_size=10000
+    memory = []
     model = Sequential()
-    model.add(Dense(64, batch_input_shape=(None, input_dim)))
+    model.add(Dense(64, batch_input_shape=(None, 19)))
     model.add(Activation('relu'))
-    model.add(Dense(output_dim))
+    model.add(Dense(1))
     model.add(Activation('linear'))
-    opt = RMSprop(lr=0.00025)
+    opt = RMSprop(lr=0.01)
     model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
     model.load_weights("model.h5")
 
     def __init__(self, eps=0.1, gamma=0.9, bsize=32): 
       self.last_state = None
-      self.last_action = None
       self.eps = eps
       self.gamma = gamma
       self.bsize = bsize
     
-    def init_model():
-
     def update_memory(self, new_state, reward, terminal):
-
-      general_features = self.make_state_features(*last_state)
-      self.last_state = self.make_features(self.last_action[0], self.last_action[1], *general_features)
       DQN.memory.append([self.last_state, new_state, reward, terminal])
-
       if len(DQN.memory) > DQN.mem_size:
         del DQN.memory[0]
         self.train()
@@ -107,23 +96,26 @@ class DQN(object):
     def make_features(self, src, dst, total_ships, total_growth, my_ships_total,your_ships_total,neutral_ships_total, my_growth,your_growth,buckets,tally):
 
       fv = []
-      fv.append(src.ships/float(total_ships))
-      fv.append(dst.ships/float(total_ships))
       fv.append(my_ships_total)
       fv.append(your_ships_total)
       fv.append(neutral_ships_total)
       fv.append(my_growth)
       fv.append(your_growth)
-      fv.append(dist(src, dst))
-      fv.append(1 if dst.owner == self.pid else 0)
-      fv.append(1 if dst.owner != 0 and dst.owner != self.pid else 0)
-      fv.append(1 if dst.owner == 0 else 0)
-      fv.append(src.growth/float(total_growth))
-      fv.append(dst.growth/float(total_growth))
-      for i in range(buckets):
-        fv.append(tally[src.id, i])
-      for i in range(buckets):
-        fv.append(tally[dst.id, i])
+      if not src is None:
+        fv.append(src.ships/float(total_ships))
+        fv.append(dst.ships/float(total_ships))
+        fv.append(dist(src, dst))
+        fv.append(1 if dst.owner == self.pid else 0)
+        fv.append(1 if dst.owner != 0 and dst.owner != self.pid else 0)
+        fv.append(1 if dst.owner == 0 else 0)
+        fv.append(src.growth/float(total_growth))
+        fv.append(dst.growth/float(total_growth))
+        for i in range(buckets):
+          fv.append(tally[src.id, i])
+        for i in range(buckets):
+          fv.append(tally[dst.id, i])
+      else:
+        fv.extend([0]*(8+2*buckets))
 
       return fv
 
@@ -137,68 +129,57 @@ class DQN(object):
         for d in planets:
           features.append(self.make_features(s,d, *general_features))
  
-      scores = DQN.model(DQN.selftrain).predict(np.array(features))
-
+      scores = DQN.model.predict(np.array(features))
       move_idx = np.argmax(scores)
       self.last_state = features[move_idx]
       s_i, d_i = np.unravel_index(move_idx, (len(srcs), len(planets)))
 
       DQN.Q_v += np.max(scores)
       DQN.Q_v_ctr += 1
-      self.last_action = srcs[s_i], planets[d_i]
       return srcs[s_i], planets[d_i]  
 
 
     def make_random_move(self, planets, fleets):
-      my_planets, other_planets = partition(lambda x: x.owner == self.pid, planets)
-      src = random.choice(my_planets)
-      dst = random.choice(other_planets)
-      s_f = self.make_state_features(planets, fleets)
-      self.last_state = self.make_features(src, dst, *s_f)
-      self.last_action = (src,dst)
-      return src, dst
+      mine, _ = partition(lambda x: x.owner == self.pid, planets)
+      return random.choice(mine), random.choice(planets)
     
     def Q_approx(self, sampled):
-      
       sp_idx = []
       features = []
       for y in sampled:
-        general_features = self.make_state_features(y[0][0], y[0][1])
-        srcs, _ = partition(lambda x: x.owner == self.pid, y[0][0])
+        general_features = self.make_state_features(y[0], y[1])
+        srcs, _ = partition(lambda x: x.owner == self.pid, y[0])
         features.append(self.make_features(None, None, *general_features))
         for s in srcs:
-          for d in y[0][0]:
+          for d in y[0]:
             features.append(self.make_features(s, d, *general_features))
             
-        c_i = len(srcs)*len(y[0][0])+1
+        c_i = len(srcs)*len(y[0])+1
         if(len(sp_idx)!=0):
           c_i += sp_idx[-1]
         sp_idx.append(c_i)  
 
       features = np.array(features)
-      preds = np.split(DQN.model(DQN.selftrain).predict(features), sp_idx[:-1])
+      preds = np.split(DQN.model.predict(features), sp_idx[:-1])
       return np.array([np.max(r) for r in preds])
 
 
     def train(self):
-      idx = np.random.randint(0, len(DQN.memory(DQN.selftrain)), size=self.bsize)
-      sampled_states = sorted([DQN.memory(DQN.selftrain)[i] for i in idx], key=lambda s: s[3])
-      
+      idx = np.random.randint(0, len(DQN.memory), size=self.bsize)
+      sampled_states = sorted([DQN.memory[i] for i in idx], key=lambda s: s[3])
       X = np.array([s[0] for s in sampled_states])
       Y = np.array([s[2] for s in sampled_states])    
       terms = np.array([s[3] for s in sampled_states])
-
       n_nonterms = self.bsize - np.sum(terms)
       Y[:n_nonterms] += self.gamma*self.Q_approx([s[1] for s in sampled_states[:n_nonterms]])  
-
-      DQN.model(DQN.selftrain).train_on_batch(X, Y)
+      DQN.model.train_on_batch(X, Y)
       DQN.counter += 1
 
     def __call__(self, turn, pid, planets, fleets):
         self.pid = pid
         self.turn = turn
-  
         my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
+
         if len(my_planets) == 0 or len(other_planets) == 0:
           return []
 
@@ -209,6 +190,9 @@ class DQN(object):
 
         if src==dst:
           return []
+        
+        ls_gen_features = self.make_state_features(planets, fleets) 
+        self.last_state = self.make_features(src, dst, *ls_gen_features) 
 
         return [Order(src, dst, src.ships/2)]
 
@@ -216,10 +200,11 @@ class DQN(object):
         pass
 
     def save_weights(self):
-        DQN.model(DQN.selftrain).save_weights("model.h5", overwrite=True)
+        DQN.model.save_weights("model.h5", overwrite=True)
 
     def load_weights(self):
-        DQN.model(DQN.selftrain).load_weights("model.h5")
+        DQN.model.load_weights("model.h5")
 
     def reset_Q(self):
       DQN.Q_v = DQN.Q_v_ctr = DQN.counter = 0
+      
