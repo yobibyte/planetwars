@@ -20,7 +20,7 @@ class DQN(object):
     mem_size=10000
     memory = []
     model = Sequential()
-    model.add(Dense(256, batch_input_shape=(None, 19), activation='relu'))
+    model.add(Dense(256, batch_input_shape=(None, 14), activation='relu'))
     model.add(Dense(256, activation='relu'))
     model.add(Dense(1, activation='linear'))
     opt = RMSprop(lr=0.01)
@@ -41,44 +41,26 @@ class DQN(object):
 
     def make_state_features(self, planets, fleets):
 
-      total_fleets  = my_ships = your_ships = neutral_ships = my_growth = your_growth = 0
-
-      for p in planets:
-        if p.owner == 0:
-          neutral_ships += p.ships
-        elif p.owner == self.pid:
-          my_growth   += p.growth
-          my_ships    += p.ships
-        else:
-          your_ships  += p.ships
-          your_growth += p.growth
-
+      total_ships = np.sum([p.ships for p in planets])
+      total_growth = np.sum([p.growth for p in planets if p.owner!=0])
       max_dist = np.max([dist(src, dst) for src in planets for dst in planets])
-
+      
       tally = np.zeros((len(planets), DQN.buckets))
       for f in fleets:
-        total_fleets += f.ships
+        total_ships += f.ships
         d = dist(planets[f.source], planets[f.destination]) * (f.remaining_turns/f.total_turns)
         b = d/max_dist * DQN.buckets
         if b >= DQN.buckets:
           b = DQN.buckets-1
         tally[f.destination, b] += f.ships * (1 if f.owner == self.pid else -1)
+      tally /= float(total_ships)
 
-      total_ships    = total_fleets+my_ships+your_ships+neutral_ships
-      total_growth   = my_growth+your_growth
-      tally         /= float(total_ships)
-      my_ships      /= float(total_ships)
-      your_ships    /= float(total_ships)
-      neutral_ships /= float(total_ships)
-      my_growth     /= float(total_growth)
-      your_growth   /= float(total_growth)
-
-      return total_ships, total_growth, my_ships, your_ships, neutral_ships, my_growth, your_growth, tally, max_dist
+      return total_ships, total_growth, tally, max_dist
 
 
-    def make_features(self, src, dst, total_ships, total_growth, my_ships,your_ships,neutral_ships, my_growth,your_growth, tally, max_dist):
+    def make_features(self, src, dst, total_ships, total_growth, tally, max_dist):
       
-      fv = [my_ships, your_ships, neutral_ships, my_growth, your_growth]
+      fv = []
       if not src is None:
         fv.append(src.ships/float(total_ships))
         fv.append(dst.ships/float(total_ships))
@@ -98,14 +80,12 @@ class DQN(object):
       return fv
 
 
-    def make_smart_move(self, planets, fleets):
+    def make_smart_move(self, planets, fleets, sf):
 
-      sf = self.make_state_features(planets, fleets)
       srcs, _ = partition(lambda x: x.owner == self.pid, planets)
       features = [self.make_features(s, d, *sf) for s in srcs for d in planets]
       scores = DQN.model.predict(np.array(features))
       move_idx = np.argmax(scores)
-      self.last_state = features[move_idx]
       s_i, d_i = np.unravel_index(move_idx, (len(srcs), len(planets)))
 
       DQN.Q_v += scores[move_idx]
@@ -122,9 +102,13 @@ class DQN(object):
       for i, y in enumerate(sampled):
         sf = self.make_state_features(y[0],y[1])
         srcs, _ = partition(lambda x: x.owner == self.pid, y[0])
-        features = [self.make_features(s, d, *sf) for s in srcs for d in y[0]]
-        if len(features) != 0:
-          res[i] = np.max(DQN.model.predict(features))
+
+        if len(srcs!=0):
+          features = [self.make_features(s, d, *sf) for s in srcs for d in y[0]]
+        else:
+          features = self.make_features(None, None, *sf)
+        res[i] = np.max(DQN.model.predict(features))
+
       return res
 
     def train(self):
@@ -151,9 +135,9 @@ class DQN(object):
         if random.random()<self.eps or len(DQN.memory)<DQN.mem_size:
           src, dst = self.make_random_move(planets,fleets)
         else:
-          src, dst = self.make_smart_move(planets,fleets)
+          src, dst = self.make_smart_move(planets,fleets, sf)
         
-        # second time if the move was not 'do nothing'
+        # if the state was not 'no source'
         self.last_state = self.make_features(src, dst, *sf) 
 
         if src == dst:

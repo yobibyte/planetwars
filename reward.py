@@ -13,13 +13,28 @@ def reward_function1(pid, p_before, p_after, f_before=None, f_after=None):
 
 
 
-def reward_function2(pid, p_before, p_after, f_before, f_after):
-    # compute the increasing of ships
+def reward_function2(pid, p_before, p_after, f_before, f_after, turn):
+
+  mg=ms=mga=msa=0
   
-  reward = sum([plt.ships for plt in p_after if plt.owner==pid])
-  reward += sum([f.ships for f in f_after if f.owner==pid])    
-  # reward -= sum([plt.ships for plt in p_before if plt.owner==pid])
-  # reward -= sum([f.ships for f in f_before if f.owner==pid])
+  mg = sum([plt.growth for plt in p_before if plt.owner==pid])
+  ms = sum([plt.ships for plt in p_before if plt.owner==pid])
+  ms += sum([f.ships for f in f_before if f.owner==pid])
+  yg = sum([plt.growth for plt in p_before if plt.owner!=pid and plt.owner!=0])
+  ys = sum([plt.ships for plt in p_before if plt.owner!=pid and plt.owner!=0])
+  ys += sum([f.ships for f in f_before if f.owner!=pid])
+  mg /= float(yg+mg)
+  ms /= float(ys+ms)
+
+  mga = sum([plt.growth for plt in p_after if plt.owner==pid])
+  msa = sum([plt.ships for plt in p_after if plt.owner==pid])
+  msa += sum([f.ships for f in f_after if f.owner==pid])
+  yga = sum([plt.growth for plt in p_after if plt.owner!=pid and plt.owner!=0])
+  ysa = sum([plt.ships for plt in p_after if plt.owner!=pid and plt.owner!=0])
+  ysa += sum([f.ships for f in f_after if f.owner!=pid])
+  mga /= float(yga+mga)
+  msa /= float(ysa+msa)
+
+  return mga*(1-turn/200.0)+msa - (mg*(1-(turn-1)/200.0)+ms)
 
 
-  return float(reward)

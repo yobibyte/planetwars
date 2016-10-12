@@ -15,7 +15,6 @@ class PlanetWars:
     ais = {}
     maps = load_all_maps()
 
-    exploit = True
     epoch_ctr = 0
 
     def __init__(self, players, map_name=None, planets=None, fleets=None,
@@ -44,7 +43,6 @@ class PlanetWars:
         self.turn = turn
         self.collisions = collisions
 
-
         self.DQN_id = -1
         for i, p in enumerate(self.players):
             if str(p).split()[0]=='<ai.bots.dqnbot.DQN':
@@ -53,10 +51,9 @@ class PlanetWars:
             else:
                 self.another_bot_id = i
 
-        if self.DQN_id!=-1:
-            if self.DQN_player.counter>=10000:
-                self.DQN_player.reset_Q()
-                PlanetWars.epoch_ctr += 1
+        if self.DQN_id!=-1 and self.DQN_player.counter>=10000:
+            self.DQN_player.reset_Q()
+            PlanetWars.epoch_ctr += 1
 
     def add_view(self, view):
         self.views.append(view)
@@ -97,9 +94,8 @@ class PlanetWars:
             # Check for end game.
             winner, ship_counts, turns = self.gameover()
             
-            dqnreward += reward
+            dqnreward += reward+100*(-1)*(winner!=self.DQN_id)*(winner>=0)
             dqnreward_e += reward_e
-
 
             self.DQN_player.update_memory((planets, fleets), reward+100*(-1)*(winner!=self.DQN_id)*(winner>=0), winner >= 0)
 
@@ -113,9 +109,10 @@ class PlanetWars:
                 pass
 
         if self.DQN_id!=-1:
-            return winner, ship_counts, turns, self.time_totals, self.time_max, dqnreward, dqnreward_e, self.DQN_player.counter/2, self.DQN_player.Q_v, self.DQN_player.Q_v_ctr
+            print "epoch: ", PlanetWars.epoch_ctr
+            return winner, ship_counts, turns, self.time_totals, self.time_max, dqnreward, dqnreward_e, self.DQN_player.counter, self.DQN_player.Q_v, self.DQN_player.Q_v_ctr
         else:
-            return winner, ship_counts, turns, self.time_totals, self.time_max, 0, 0, 0,0,0
+            return winner, ship_counts, turns, self.time_totals, self.time_max, 0,0,0,0,0
         
 
                 
@@ -126,9 +123,7 @@ class PlanetWars:
         planets, fleets = self.freeze()
         player_orders = []
 
-        self.action = (None, None)
         self.last_state = (planets,fleets)
-
 
         for i, player in enumerate(self.players):
           prev = time.time()
@@ -137,8 +132,6 @@ class PlanetWars:
           self.time_totals[i] += t
           if t > self.time_max[i]:
             self.time_max[i] = t
-
-        score, score_e = self.compute_score(self.planets, self.fleets)
 
         self.turn += 1
                 
@@ -186,18 +179,6 @@ class PlanetWars:
 
         return self.get_reward(self.DQN_id, self.last_state[0], self.planets), self.get_reward(self.another_bot_id, self.last_state[0], self.planets)
 
-    def compute_score(self, planets, fleets):
-        
-        if self.DQN_id!=-1:
-            score_s=0
-            score_s = sum([plt.ships for plt in planets if plt.owner==self.DQN_id])
-            score_s += sum([f.ships for f in fleets if f.owner==self.DQN_id])
-            score_es = sum([plt.ships for plt in planets if plt.owner!=self.DQN_id and plt.owner!=0])
-            score_es += sum([f.ships for f in fleets if f.owner!=self.DQN_id])
-            
-            return score_s, score_es
-        return 0,0
-
 
     def issue_order(self, player, order):
         if order.source.owner != player:
@@ -208,10 +189,6 @@ class PlanetWars:
             destination = self.planets[order.destination.id]
             source.ships -= ships
             self.fleets.append(Fleet(player, ships, source, destination))
-
-            if player!=self.DQN_id:
-                self.action = (source,destination)
-
 
 
 # Endgame Conditions http://planetwars.aichallenge.org/specification.php

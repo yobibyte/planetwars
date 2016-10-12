@@ -103,8 +103,7 @@ def main(argv):
           winner, ship_counts, turns, tt, tm, reward, reward_e, counter, qv, qv_ctr = game.play()
 
           turns_ctr += turns
-          r_ctr+= reward
-          
+          r_ctr+= reward          
           
           print("DQN bot reward for game is {}".format(reward))
           print("Another bot reward for game is {}".format(reward_e)) 
@@ -157,22 +156,26 @@ def main(argv):
 
       if counter>=10000:
         n_g = (gn - n_g + 1.0 if temp==0 else float(gn - temp))
-        stats.append(str(win_ctr/n_g)+"\t"+str(turns_ctr/n_g)+"\t"+str(r_ctr/n_g)+"\t"+str(qv/float(qv_ctr)))
-        PlanetWars.exploit = True if win_ctr/n_g > 0.45 else False
+        stats.append(str(win_ctr/n_g)+"\t"+str(turns_ctr/n_g)+"\t"+str(r_ctr/n_g)+"\t"+str(qv[0]/float(qv_ctr)))
         win_ctr=turns_ctr=r_ctr=0
         temp = gn
 
-      if PlanetWars.epoch_ctr%10==0 or gn==arguments.games-1:
-        game.save_weights()
-        file = open("stats", 'w')
-        file.write("win\tturns/game\treward/game\taverage Q value\n")
-        for i in range(len(stats)):
-          file.write(stats[i])
-          file.write("\n")
-        file.close()
+        if PlanetWars.epoch_ctr%10==0:
+          ouput_file(game, stats)
+
+      if gn==arguments.games-1:
+        ouput_file(game, stats)
 
     print res
     
+def ouput_file(game, stats):
+    game.save_weights()
+    file = open("stats", 'w')
+    file.write("win\tturns/game\treward/game\taverage Q value\n")
+    for i in range(len(stats)):
+      file.write(stats[i])
+      file.write("\n")
+    file.close()  
 
 if __name__ == '__main__':
     import sys
