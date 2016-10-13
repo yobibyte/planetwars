@@ -18,7 +18,6 @@ def main(argv):
     stats = []
     win_ctr=turns_ctr=r_ctr=counter=n_g=qv=qv_ctr=0
 
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--collisions', action='store_true', required=False, default=False,
                         help="Should the ships collide with each other?")
@@ -32,8 +31,9 @@ def main(argv):
                         help="Planet number for player 2.")
     parser.add_argument('--nnum', type=int, required=False, default=21,
                         help="Number of neutral planets.")
-    parser.add_argument('--genmaps', action='store_true', required=False, default=False,
-                        help="Generate random maps.")
+    parser.add_argument('--genmaps', action='store_true', required=False, default=False, help='Use generated maps.')
+    parser.add_argument('--toy', action='store_true', required=False, default=False,
+                        help="Use toy maps.")
     parser.add_argument('--quiet', action='store_true', required=False, default=False,
                         help="Suppress all output to the console.")
 
@@ -70,8 +70,10 @@ def main(argv):
         state.random_setup(arguments.p1num, arguments.p2num, arguments.nnum)
       else:
         if len(maps) == 0:
-          maps = ["map%i" % i for i in range(1, 100)]
-          # maps = ["map_toy%i" % i for i in range(1, 10)]
+          if arguments.toy:
+            maps = ["map_toy%i" % i for i in range(1, 10)]
+          else:
+            maps = ["map%i" % i for i in range(1, 100)]
           random.shuffle(maps, random.random)
         map_name = maps.pop()
 
@@ -87,19 +89,14 @@ def main(argv):
           if i2 >= i1:
             continue
             
-
           pair = [players[i1], players[i2]]
 
           if map_name == None:
             game = PlanetWars(pair, planets=copy.deepcopy(state.planets), \
                               fleets=copy.deepcopy(state.fleets), collisions=arguments.collisions)
-            #print_planets(state.planets)
           else:
             game = PlanetWars(pair, map_name, collisions=arguments.collisions)
           
-          # if gn==0:
-          #   game.load_weights()
-
           winner, ship_counts, turns, tt, tm, reward, reward_e, counter, qv, qv_ctr = game.play()
 
           turns_ctr += turns
@@ -151,9 +148,6 @@ def main(argv):
           print "%5.1f " % (100*res[mi1][mi2]/n),
         print " avgt: %7.2f maxt: %7.2f" % (1000*time_totals[mi1]/n/(len(players)-1), 1000*time_max[mi1])
       
-      #sys.stdout.write('.')
-      #sys.stdout.flush()
-
       if counter>=10000:
         n_g = (gn - n_g + 1.0 if temp==0 else float(gn - temp))
         stats.append(str(win_ctr/n_g)+"\t"+str(turns_ctr/n_g)+"\t"+str(r_ctr/n_g)+"\t"+str(qv[0]/float(qv_ctr)))
@@ -178,5 +172,4 @@ def ouput_file(game, stats):
     file.close()  
 
 if __name__ == '__main__':
-    import sys
     main(sys.argv[1:])
