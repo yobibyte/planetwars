@@ -23,12 +23,12 @@ class DQN(object):
     gamma = 0.9
     eps   = 0.1
     model = Sequential()
-    model.add(Dense(64, batch_input_shape=(None, 14), activation='relu'))
-    model.add(Dense(64, activation='relu'))
+    model.add(Dense(128, batch_input_shape=(None, 14), activation='relu'))
+    model.add(Dense(128, activation='relu'))
     model.add(Dense(1, activation='linear'))
-    opt = RMSprop(lr=0.01)
+    opt = RMSprop(lr=0.0025)
     model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
-    model.load_weights("model.h5")
+    #model.load_weights("model.h5")
 
     def __init__(self): 
       self.last_state = None
@@ -42,7 +42,8 @@ class DQN(object):
     def make_state_features(self, planets, fleets):
 
       total_ships = np.sum([p.ships for p in planets])
-      total_growth = np.sum([p.growth for p in planets if p.owner!=0])
+      #total_growth = np.sum([p.growth for p in planets if p.owner!=0])
+      total_growth = np.sum([p.growth for p in planets])
       max_dist = np.max([dist(src, dst) for src in planets for dst in planets])
       
       tally = np.zeros((len(planets), DQN.buckets))
@@ -110,7 +111,6 @@ class DQN(object):
 
     def __call__(self, turn, pid, planets, fleets):
         self.pid = pid
-        self.turn = turn
         my_planets, other_planets = partition(lambda x: x.owner == pid, planets)
         
         sf = self.make_state_features(planets, fleets) 

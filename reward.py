@@ -6,9 +6,9 @@ def reward_function1(pid, p_before, p_after, f_before=None, f_after=None):
   reward = 0.0
   for i in range(n_p):
     if (p_before[i].owner == pid and p_after[i].owner != pid):
-      reward-=1.0
+      reward-=1.0*p_before[i].growth
     elif(p_before[i].owner != pid and p_after[i].owner ==pid):
-      reward+=1.0
+      reward+=1.0*p_before[i].growth
   return reward
 
 
