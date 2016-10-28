@@ -147,25 +147,21 @@ def main(argv):
           mi2 = slist[i2][0]
           print "%5.1f " % (100*res[mi1][mi2]/n),
         print " avgt: %7.2f maxt: %7.2f" % (1000*time_totals[mi1]/n/(len(players)-1), 1000*time_max[mi1])
+     
+      stats.append('{};{};{}'.format(win_ctr, turns_ctr,r_ctr)) 
+      win_ctr=turns_ctr=r_ctr=0
       
       if counter>=10000:
         n_g = (gn - n_g + 1.0 if temp==0 else float(gn - temp))
-        stats.append(str(win_ctr/n_g)+"\t"+str(turns_ctr/n_g)+"\t"+str(r_ctr/n_g)+"\t"+str(qv[0]/float(qv_ctr)))
-        win_ctr=turns_ctr=r_ctr=0
         temp = gn
 
-        if PlanetWars.epoch_ctr%10==0:
-          ouput_file(game, stats)
-
-      if gn==arguments.games-1:
-        ouput_file(game, stats)
+    write_to_file(game, stats)
 
     print res
     
-def ouput_file(game, stats):
+def write_to_file(game, stats):
     game.save_weights()
     file = open("stats", 'w')
-    file.write("win\tturns/game\treward/game\taverage Q value\n")
     for i in range(len(stats)):
       file.write(stats[i])
       file.write("\n")
