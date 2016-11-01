@@ -8,6 +8,9 @@ If you cannot run a game server due to unicode error, run this:
 ```bash
 pip2 install -U gevent==1.1b4
 ```
+## Model
+
+Best model available (~70% vs Evolved) is [here](https://dl.dropboxusercontent.com/u/23750836/model.h5).
 
 ## Description (taken from [google ai challenge](https://web.archive.org/web/20120510223543/http://planetwars.aichallenge.org/problem_description.php))
 
