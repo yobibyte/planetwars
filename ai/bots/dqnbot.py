@@ -8,6 +8,7 @@ from planetwars.utils import *
 
 from keras.models import Sequential                                             
 from keras.layers import Dense
+from keras.layers.core import Dropout
 from keras.optimizers import RMSprop
 
 
@@ -16,17 +17,19 @@ class DQN(object):
 
     Q_v = Q_v_ctr = counter = 0
 
-    buckets = 3
+    buckets = 5
     mem_size=10000
     bsize = 32
     memory = []
     gamma = 0.9
     eps   = 0.1
     model = Sequential()
-    model.add(Dense(128, batch_input_shape=(None, 14), activation='relu'))
-    model.add(Dense(128, activation='relu'))
+    model.add(Dense(256, batch_input_shape=(None, 18), activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(256, activation='relu'))
+    model.add(Dropout(0.5))
     model.add(Dense(1, activation='linear'))
-    opt = RMSprop(lr=0.0025)
+    opt = RMSprop(lr=0.00025)
     model.compile(loss='mse', optimizer='rmsprop', metrics=['accuracy'])
     #model.load_weights("model.h5")
 

@@ -94,10 +94,10 @@ class PlanetWars:
             # Check for end game.
             winner, ship_counts, turns = self.gameover()
             
-            dqnreward += reward+100*(-1)*(winner!=self.DQN_id)*(winner>=0)
+            dqnreward += reward+100*(-1)**(winner!=self.DQN_id)*(winner>=0)
             dqnreward_e += reward_e
 
-            self.DQN_player.update_memory((planets, fleets), reward+100*(-1)*(winner!=self.DQN_id)*(winner>=0), winner >= 0)
+            self.DQN_player.update_memory((planets, fleets), reward+100*(-1)**(winner!=self.DQN_id)*(winner>=0), winner >= 0)
 
         for view in self.views:
             view.game_over(winner, ship_counts, turns)
